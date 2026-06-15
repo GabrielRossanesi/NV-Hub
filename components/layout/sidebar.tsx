@@ -6,9 +6,12 @@ import { usePathname } from 'next/navigation';
 import { 
   LayoutDashboard, Users, FileText, Briefcase, 
   CreditCard, UserPlus, Megaphone, CheckSquare, 
-  History, Settings, X, Power
+  History, Settings, X, Power, Sparkles, Building2,
+  Target
 } from 'lucide-react';
 import Button from '../ui/button';
+import { useTenantStore } from '../../lib/store';
+import { PLATFORM_NAME } from '../../lib/config';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -17,9 +20,16 @@ interface SidebarProps {
 
 export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const pathname = usePathname();
+  const { 
+    organizations, 
+    currentOrganizationId, 
+    setCurrentOrganizationId,
+    currentUser 
+  } = useTenantStore();
 
   const menuItems = [
     { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+    { label: 'Leads', href: '/leads', icon: Target },
     { label: 'Clientes', href: '/clientes', icon: Users },
     { label: 'Propostas', href: '/propostas', icon: FileText },
     { label: 'Contratos', href: '/contratos', icon: Briefcase },
@@ -54,8 +64,8 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
               <Power className="h-5 w-5 animate-pulse" />
             </div>
             <div className="flex flex-col">
-              <span className="font-bold text-sm leading-tight tracking-tight">Hub Power</span>
-              <span className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">&amp; Ponto</span>
+              <span className="font-bold text-sm leading-tight tracking-tight">{PLATFORM_NAME}</span>
+              <span className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">SaaS Manager</span>
             </div>
           </Link>
           <Button
@@ -68,38 +78,88 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
           </Button>
         </div>
 
+        {/* Organization Switcher Dropdown (Simulator) */}
+        <div className="px-4 py-3 bg-muted/20 border-b border-border/40 shrink-0">
+          <div className="flex items-center gap-1.5 mb-1.5 text-[9px] font-bold text-primary uppercase tracking-wider select-none">
+            <Sparkles className="h-3.5 w-3.5 text-primary animate-pulse" /> Simulador de Organização
+          </div>
+          <div className="relative">
+            <select
+              value={currentOrganizationId || ''}
+              onChange={(e) => setCurrentOrganizationId?.(e.target.value)}
+              className="w-full h-9 pl-2.5 pr-8 rounded-lg bg-background border border-border text-xs font-semibold text-foreground focus:outline-none focus:ring-2 focus:ring-primary/45 focus:border-primary cursor-pointer transition-all"
+              title="Alternar Organização Assinante"
+            >
+              {(organizations || []).map((org) => (
+                <option key={org?.id || ''} value={org?.id || ''}>
+                  {org?.name || 'Organização sem nome'}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
         {/* Navigation Links */}
         <nav className="flex-1 overflow-y-auto px-4 py-6 space-y-1">
-          {menuItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = pathname.startsWith(item.href);
+          {(menuItems || []).map((item, idx) => {
+            if (!item) return null;
+            const Icon = item.icon || Target;
+            const itemHref = item.href || '#';
+            const isActive = itemHref !== '#' && pathname.startsWith(itemHref);
             return (
               <Link
-                key={item.href}
-                href={item.href}
+                key={(item.href || '#') + '-' + idx}
+                href={itemHref}
                 onClick={onClose}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-semibold transition-all relative ${
                   isActive
-                    ? 'bg-primary text-primary-foreground shadow-sm'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                    ? 'bg-primary/10 text-primary border-l-4 border-primary rounded-l-none pl-2 shadow-sm dark:bg-primary dark:text-primary-foreground dark:border-l-0 dark:rounded-lg dark:pl-3'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
                 }`}
               >
-                <Icon className={`h-4.5 w-4.5 ${isActive ? 'text-current' : 'text-muted-foreground group-hover:text-foreground'}`} />
-                {item.label}
+                <Icon className={`h-4.5 w-4.5 shrink-0 ${isActive ? 'text-primary dark:text-current' : 'text-muted-foreground group-hover:text-foreground'}`} />
+                {item.label || 'Item'}
               </Link>
             );
           })}
+
+          {/* Painel Operador Section */}
+          <div className="pt-4 mt-4 border-t border-border/40">
+            <div className="px-3 mb-2 text-[9px] font-bold text-muted-foreground uppercase tracking-wider">
+              Operador GaroFlow
+            </div>
+            <Link
+              href="/empresas"
+              onClick={onClose}
+              className={`flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-semibold transition-all relative ${
+                pathname.startsWith('/empresas')
+                  ? 'bg-primary/10 text-primary border-l-4 border-primary rounded-l-none pl-2 shadow-sm dark:bg-primary dark:text-primary-foreground dark:border-l-0 dark:rounded-lg dark:pl-3'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <Building2 className={`h-4.5 w-4.5 shrink-0 ${pathname.startsWith('/empresas') ? 'text-primary dark:text-current' : 'text-muted-foreground'}`} />
+                <span>Empresas</span>
+              </div>
+              <span className="bg-primary/20 text-primary dark:bg-primary-foreground/20 dark:text-primary-foreground text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider shrink-0">
+                Admin
+              </span>
+            </Link>
+          </div>
         </nav>
 
         {/* Footer info */}
         <div className="p-4 border-t border-border/40 shrink-0">
           <div className="flex items-center gap-3 px-2 py-1.5 rounded-lg bg-muted/40">
-            <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center font-bold text-primary text-xs uppercase">
-              AS
+            <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center font-bold text-primary text-xs uppercase shrink-0">
+              {String(currentUser?.name || 'US').slice(0, 2)}
             </div>
             <div className="flex flex-col min-w-0">
-              <span className="text-xs font-semibold truncate text-foreground">Ana Silva</span>
-              <span className="text-[10px] text-muted-foreground truncate">Operações / Onboarding</span>
+              <span className="text-xs font-semibold truncate text-foreground">{currentUser?.name || 'Usuário'}</span>
+              <span className="text-[9px] text-muted-foreground truncate leading-normal" title={`${currentUser?.role || 'Membro'} (${String(currentUser?.userRole ?? 'member').toUpperCase()})`}>
+                {currentUser?.role || 'Membro'}
+                <strong className="text-primary block font-mono text-[8px] uppercase">{String(currentUser?.userRole ?? 'member').toUpperCase()}</strong>
+              </span>
             </div>
           </div>
         </div>

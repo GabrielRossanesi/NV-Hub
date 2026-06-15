@@ -19,7 +19,7 @@ export function StatusBadge({ type, status }: StatusBadgeProps) {
   if (type === 'client') {
     const s = status as ClientStatus;
     const mapping: Record<ClientStatus, { label: string; variant: BadgeVariant }> = {
-      lead: { label: 'Lead', variant: 'muted' },
+      lead: { label: 'Lead', variant: 'warning' },
       onboarding: { label: 'Onboarding', variant: 'info' },
       active: { label: 'Ativo', variant: 'success' },
       inactive: { label: 'Inativo', variant: 'danger' }

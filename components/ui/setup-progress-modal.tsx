@@ -1,5 +1,5 @@
 import React from 'react';
-import { useStore } from '../../lib/store';
+import { useTenantStore } from '../../lib/store';
 import { 
   CreditCard, FolderOpen, CheckSquare, ListPlus, 
   CheckCircle2, Loader2, X, ArrowUpRight
@@ -16,7 +16,7 @@ export function SetupProgressModal() {
     onboardings,
     clearActiveSetup,
     setSetupDismissed
-  } = useStore();
+  } = useTenantStore();
 
   if (!activeSetupClientId || isSetupDismissed) return null;
 
@@ -194,7 +194,7 @@ export function SetupIndicator() {
     clients, 
     clearActiveSetup, 
     setSetupDismissed 
-  } = useStore();
+  } = useTenantStore();
 
   // Show if setup is active AND user has dismissed/minimized the main modal
   if (!activeSetupClientId || !isSetupDismissed) return null;

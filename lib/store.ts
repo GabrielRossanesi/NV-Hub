@@ -8,10 +8,14 @@ import {
   Onboarding, OnboardingStepStatus,
   Publication, PublicationStatus,
   TeamTask, TaskStatus,
-  HistoryEvent, TeamMember
+  HistoryEvent, TeamMember,
+  Organization, PlanType, PlanLimits, UserRole,
+  TenantIntegration, Lead, LeadStatus, LeadTemperature
 } from '../types';
 
 interface SystemState {
+  organizations: Organization[];
+  currentOrganizationId: string;
   clients: Client[];
   proposals: Proposal[];
   contracts: Contract[];
@@ -22,34 +26,43 @@ interface SystemState {
   historyEvents: HistoryEvent[];
   teamMembers: TeamMember[];
   currentUser: TeamMember;
+  integrations: TenantIntegration[];
+  leads: Lead[];
   
   // Actions
-  addClient: (client: Omit<Client, 'id' | 'createdAt'>) => Client;
+  setCurrentOrganizationId: (id: string) => void;
+  upgradePlan: (planId: PlanType, orgId?: string) => void;
+  updateOrganizationStatus: (orgId: string, status: 'active' | 'suspended' | 'trial') => void;
+  updateTeamMemberRole: (id: string, role: UserRole) => void;
+  updateTeamMemberStatus: (id: string, status: 'active' | 'pending' | 'disabled') => void;
+  checkLimit: (type: 'clients' | 'users' | 'proposals' | 'tasks', orgId?: string) => boolean;
+  
+  addClient: (client: Omit<Client, 'id' | 'organizationId' | 'createdAt'> & { organizationId?: string }) => Client | null;
   updateClientStatus: (id: string, status: ClientStatus) => void;
   
-  addProposal: (proposal: Omit<Proposal, 'id' | 'createdAt' | 'status'>) => Proposal;
+  addProposal: (proposal: Omit<Proposal, 'id' | 'organizationId' | 'createdAt' | 'status'> & { organizationId?: string }) => Proposal | null;
   updateProposalStatus: (id: string, status: ProposalStatus) => void;
-  acceptProposalFlow: (id: string) => void; // Trigger acceptance, which auto-generates contract
+  acceptProposalFlow: (id: string) => void;
   declineProposalFlow: (id: string) => void;
   
-  addContract: (contract: Omit<Contract, 'id' | 'createdAt'>) => Contract;
+  addContract: (contract: Omit<Contract, 'id' | 'organizationId' | 'createdAt'> & { organizationId?: string }) => Contract;
   updateContractStatus: (id: string, status: ContractStatus) => void;
-  signContractFlow: (id: string) => void; // Trigger signature, which auto-generates charge
+  signContractFlow: (id: string) => void;
   
-  addCharge: (charge: Omit<Charge, 'id' | 'createdAt'>) => Charge;
+  addCharge: (charge: Omit<Charge, 'id' | 'organizationId' | 'createdAt'> & { organizationId?: string }) => Charge;
   updateChargeStatus: (id: string, status: ChargeStatus) => void;
-  confirmPaymentFlow: (id: string) => void; // Trigger payment, which starts onboarding
+  confirmPaymentFlow: (id: string) => void;
   
   updateOnboardingStep: (clientId: string, stepName: keyof Onboarding['steps'], status: OnboardingStepStatus) => void;
   updateOnboardingLinks: (clientId: string, links: Partial<Onboarding['links']>) => void;
   
-  addPublication: (pub: Omit<Publication, 'id' | 'createdAt'>) => Publication;
+  addPublication: (pub: Omit<Publication, 'id' | 'organizationId' | 'createdAt'> & { organizationId?: string }) => Publication;
   updatePublicationStatus: (id: string, status: PublicationStatus, comments?: string) => void;
   
-  addTask: (task: Omit<TeamTask, 'id' | 'createdAt'>) => TeamTask;
+  addTask: (task: Omit<TeamTask, 'id' | 'organizationId' | 'createdAt'> & { organizationId?: string }) => TeamTask | null;
   updateTaskStatus: (id: string, status: TaskStatus) => void;
   
-  addHistoryEvent: (event: Omit<HistoryEvent, 'id' | 'createdAt'>) => void;
+  addHistoryEvent: (event: Omit<HistoryEvent, 'id' | 'organizationId' | 'createdAt'> & { organizationId?: string }) => void;
   
   activeSetupClientId: string | null;
   activeSetupStep: 'payment' | 'drive' | 'clickup' | 'tasks' | 'completed' | 'none';
@@ -57,7 +70,6 @@ interface SystemState {
   clearActiveSetup: () => void;
   setSetupDismissed: (dismissed: boolean) => void;
 
-  // CNPJ Mock API Simulator
   simulateCnpjSearch: (cnpj: string) => {
     companyName: string;
     tradeName: string;
@@ -69,18 +81,394 @@ interface SystemState {
   } | null;
 
   resetState: () => void;
+  updateIntegration: (orgId: string, data: Partial<TenantIntegration>) => void;
+  testIntegrationConnection: (orgId: string, service: string) => void;
+
+  addLead: (lead: Omit<Lead, 'id' | 'createdAt' | 'lastInteraction' | 'organizationId'> & { organizationId?: string }) => Lead;
+  updateLeadStatus: (id: string, status: LeadStatus) => void;
+  updateLeadTemperature: (id: string, temperature: LeadTemperature) => void;
+  assignLead: (id: string, responsibleUser: string) => void;
+  addLeadNote: (id: string, note: string) => void;
+  convertLeadToClient: (id: string) => Client | null;
+  createProposalFromLead: (id: string) => Proposal | null;
+  markLeadAsLost: (id: string, reason: string) => void;
 }
 
+const initialOrganizations: Organization[] = [
+  {
+    id: 'org_hub_power',
+    name: 'Power & Ponto',
+    cnpj: '12.345.678/0001-90',
+    planId: 'pro',
+    status: 'active',
+    createdAt: '2026-05-10T10:00:00Z'
+  },
+  {
+    id: 'org_spark',
+    name: 'Spark Agency',
+    cnpj: '44.333.222/0001-11',
+    planId: 'starter',
+    status: 'active',
+    createdAt: '2026-06-01T10:00:00Z'
+  },
+  {
+    id: 'org_morales',
+    name: 'Morales Soluções',
+    cnpj: '55.666.777/0001-88',
+    planId: 'enterprise',
+    status: 'active',
+    createdAt: '2026-06-10T09:00:00Z'
+  }
+];
+
+const initialIntegrations: TenantIntegration[] = [
+  {
+    organizationId: 'org_hub_power',
+    asaasToken: '$asaas_live_token_738472938491028394',
+    asaasWebhook: 'wh_token_asaas_sec_8392849',
+    asaasStatus: 'sandbox',
+    clickupToken: 'pk_48392_4728347293847239',
+    clickupWorkspace: '90038472',
+    clickupStatus: 'connected',
+    googleKey: 'google-key-service-account-placeholder',
+    googleFolder: 'drive_root_folder_id_98293489234',
+    googleDriveStatus: 'connected',
+    zapsignKey: 'api_key_zapsign_live_83928492',
+    zapsignStatus: 'connected',
+    whatsappToken: '',
+    whatsappStatus: 'not_connected',
+    metaAdsToken: '',
+    metaAdsStatus: 'not_connected',
+    googleAdsToken: '',
+    googleAdsStatus: 'not_connected'
+  },
+  {
+    organizationId: 'org_spark',
+    asaasToken: '$asaas_sandbox_token_9837498732984',
+    asaasWebhook: 'wh_token_spark_asaas_883928',
+    asaasStatus: 'sandbox',
+    clickupToken: '',
+    clickupWorkspace: '',
+    clickupStatus: 'not_connected',
+    googleKey: '',
+    googleFolder: '',
+    googleDriveStatus: 'not_connected',
+    zapsignKey: '',
+    zapsignStatus: 'not_connected',
+    whatsappToken: '',
+    whatsappStatus: 'not_connected',
+    metaAdsToken: '',
+    metaAdsStatus: 'not_connected',
+    googleAdsToken: '',
+    googleAdsStatus: 'not_connected'
+  },
+  {
+    organizationId: 'org_morales',
+    asaasToken: '',
+    asaasWebhook: '',
+    asaasStatus: 'not_connected',
+    clickupToken: 'pk_99321_morales_workspace_8392942',
+    clickupWorkspace: '3349284',
+    clickupStatus: 'sandbox',
+    googleKey: 'google-key-morales-service-account',
+    googleFolder: 'drive_morales_root_839284928',
+    googleDriveStatus: 'connected',
+    zapsignKey: 'api_key_zapsign_morales_993849',
+    zapsignStatus: 'connected',
+    whatsappToken: 'wa_token_morales_live_93849284',
+    whatsappStatus: 'connected',
+    metaAdsToken: 'meta_ads_token_morales_9839492',
+    metaAdsStatus: 'connected',
+    googleAdsToken: 'google_ads_token_morales_229384',
+    googleAdsStatus: 'connected'
+  }
+];
+
+const initialLeads: Lead[] = [
+  // Power & Ponto Leads
+  {
+    id: 'l1',
+    organizationId: 'org_hub_power',
+    name: 'Carlos Oliveira',
+    companyName: 'Oliveira Transportes',
+    email: 'carlos@oliveiratrans.com.br',
+    phone: '(11) 99888-1111',
+    origin: 'Anúncio de Pesquisa',
+    platform: 'google_ads',
+    campaign: 'Pesquisa_Servicos_SP',
+    adGroup: 'Controle_Ponto',
+    adName: 'Ponto Eletrônico Rápido',
+    formName: 'Formulário Principal',
+    message: 'Gostaria de saber como funciona a integração com o relógio de ponto de parede.',
+    status: 'new',
+    temperature: 'hot',
+    responsibleUser: 'Ana Silva',
+    createdAt: '2026-06-12T09:00:00Z',
+    lastInteraction: '2026-06-12T09:00:00Z',
+    notes: 'Lead muito interessado. Entrou via Google Ads.'
+  },
+  {
+    id: 'l2',
+    organizationId: 'org_hub_power',
+    name: 'Patrícia Souza',
+    companyName: 'Souza Contabilidade',
+    email: 'patricia@souzacontab.com.br',
+    phone: '(11) 98888-2222',
+    origin: 'Instagram Lead Form',
+    platform: 'meta_ads',
+    campaign: 'Meta_Conversao_Empresas',
+    adGroup: 'RH_Gestao',
+    adName: 'Automatizar Folha e Ponto',
+    formName: 'Lead Form Redes Sociais',
+    message: 'Temos 45 funcionários e hoje fazemos tudo em planilha Excel.',
+    status: 'in_progress',
+    temperature: 'warm',
+    responsibleUser: 'João Santos',
+    createdAt: '2026-06-10T14:30:00Z',
+    lastInteraction: '2026-06-11T10:00:00Z',
+    notes: 'Marcada conversa de acompanhamento. Entrou via Meta Ads.'
+  },
+  {
+    id: 'l3',
+    organizationId: 'org_hub_power',
+    name: 'Roberto Diniz',
+    companyName: 'Diniz Conveniência',
+    email: 'roberto@dinizconveniencia.com',
+    phone: '(21) 97777-3333',
+    origin: 'WhatsApp Corporativo',
+    platform: 'whatsapp',
+    message: 'Olá, preciso de um orçamento para controle de ponto móvel via app.',
+    status: 'qualified',
+    temperature: 'hot',
+    responsibleUser: 'Ana Silva',
+    createdAt: '2026-06-13T10:00:00Z',
+    lastInteraction: '2026-06-13T10:30:00Z',
+    notes: 'Qualificado. Apresenta orçamento compatível com plano Pro.'
+  },
+  {
+    id: 'l4',
+    organizationId: 'org_hub_power',
+    name: 'Luciana Mello',
+    companyName: 'Mello Advocacia',
+    email: 'luciana@mello.adv.br',
+    phone: '(11) 96666-4444',
+    origin: 'Indicação Comercial',
+    platform: 'organic',
+    message: 'Indicado por cliente antigo do plano Enterprise.',
+    status: 'lost',
+    temperature: 'cold',
+    responsibleUser: 'Carlos Santos',
+    createdAt: '2026-06-05T11:00:00Z',
+    lastInteraction: '2026-06-08T09:00:00Z',
+    notes: 'Perda registrada. Consideraram o preço inicial do setup muito alto.'
+  },
+
+  // Spark Agency Leads
+  {
+    id: 'l_s1',
+    organizationId: 'org_spark',
+    name: 'Juliana Castro',
+    companyName: 'Juliana Castro Estética',
+    email: 'contato@julianacastro.com.br',
+    phone: '(11) 98392-8239',
+    origin: 'Facebook Leads',
+    platform: 'meta_ads',
+    campaign: 'Spark_Conversao_Beleza',
+    adGroup: 'Estetica_Premium',
+    message: 'Interessada em campanhas mensais de tráfego para atração de clientes locais.',
+    status: 'new',
+    temperature: 'hot',
+    responsibleUser: 'Alice Costa',
+    createdAt: '2026-06-14T08:00:00Z',
+    lastInteraction: '2026-06-14T08:00:00Z',
+    notes: 'Lead quente gerado recentemente pelo Meta Ads.'
+  },
+  {
+    id: 'l_s2',
+    organizationId: 'org_spark',
+    name: 'Ricardo Neves',
+    companyName: 'Neves Imobiliária',
+    email: 'diretoria@nevesimoveis.com.br',
+    phone: '(11) 97382-9938',
+    origin: 'Formulário do Site',
+    platform: 'landing_page',
+    message: 'Preciso de reestruturação de site e criação de landing pages para lançamentos.',
+    status: 'meeting',
+    temperature: 'warm',
+    responsibleUser: 'Roberto Lima',
+    createdAt: '2026-06-11T16:00:00Z',
+    lastInteraction: '2026-06-12T14:00:00Z',
+    notes: 'Reunião agendada para 18/06 para alinhar escopo de desenvolvimento.'
+  },
+  {
+    id: 'l_s3',
+    organizationId: 'org_spark',
+    name: 'André Melo',
+    companyName: 'Melo Pizzaria',
+    email: 'andre@melopizza.com',
+    phone: '(19) 99839-2231',
+    origin: 'WhatsApp Contato',
+    platform: 'whatsapp',
+    message: 'Olá, gostaria de saber se vocês fazem design de posts de cardápio e anúncios locais.',
+    status: 'converted',
+    temperature: 'hot',
+    responsibleUser: 'Alice Costa',
+    createdAt: '2026-06-01T10:00:00Z',
+    lastInteraction: '2026-06-02T10:00:00Z',
+    notes: 'Convertido em cliente! Já inserido no fluxo de onboarding da Spark.'
+  },
+
+  // Morales Soluções Leads
+  {
+    id: 'l_m1',
+    organizationId: 'org_morales',
+    name: 'Fernando Santos',
+    companyName: 'Santos Supermercados',
+    email: 'fernando@santosmercados.com.br',
+    phone: '(11) 94839-2938',
+    origin: 'Google Ads Pesquisa',
+    platform: 'google_ads',
+    campaign: 'Morales_SEO_Local',
+    adGroup: 'Supermercados',
+    message: 'Precisamos de consultoria completa de posicionamento no Google e SEO de e-commerce.',
+    status: 'proposal_requested',
+    temperature: 'hot',
+    responsibleUser: 'Fabiana Melo',
+    createdAt: '2026-06-12T11:00:00Z',
+    lastInteraction: '2026-06-13T15:00:00Z',
+    notes: 'Solicitou proposta de consultoria mensal. Proposta sendo estruturada.'
+  },
+  {
+    id: 'l_m2',
+    organizationId: 'org_morales',
+    name: 'Letícia Lima',
+    companyName: 'Lima Clínicas',
+    email: 'leticia@limaclinicas.com',
+    phone: '(11) 95829-9944',
+    origin: 'Indicação',
+    platform: 'organic',
+    message: 'Indicação direta. Quer fazer SEO técnico e otimização de busca local.',
+    status: 'meeting',
+    temperature: 'warm',
+    responsibleUser: 'Carlos Morales',
+    createdAt: '2026-06-10T15:00:00Z',
+    lastInteraction: '2026-06-11T11:00:00Z',
+    notes: 'Reunião de alinhamento técnico agendada com Carlos Morales.'
+  },
+  {
+    id: 'l_m3',
+    organizationId: 'org_morales',
+    name: 'Bruno Rocha',
+    companyName: 'Rocha Engenharia',
+    email: 'bruno@rochaeng.com.br',
+    phone: '(11) 93948-2233',
+    origin: 'Busca Orgânica',
+    platform: 'organic',
+    message: 'Interessado em auditoria de tráfego orgânico para construtoras.',
+    status: 'new',
+    temperature: 'cold',
+    responsibleUser: 'Fabiana Melo',
+    createdAt: '2026-06-14T17:00:00Z',
+    lastInteraction: '2026-06-14T17:00:00Z',
+    notes: 'Lead capturado recentemente por busca orgânica no blog Morales.'
+  }
+];
+
 const initialTeamMembers: TeamMember[] = [
-  { id: '1', name: 'Ana Silva', role: 'Gestora de Contas / Onboarding', avatarUrl: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&auto=format&fit=crop&q=80' },
-  { id: '2', name: 'João Santos', role: 'Social Media & Designer', avatarUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&auto=format&fit=crop&q=80' },
-  { id: '3', name: 'Maria Souza', role: 'Gestora de Tráfego Pago', avatarUrl: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&auto=format&fit=crop&q=80' },
-  { id: '4', name: 'Carlos Santos', role: 'Diretor Comercial', avatarUrl: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&auto=format&fit=crop&q=80' }
+  { 
+    id: '1', 
+    organizationId: 'org_hub_power', 
+    name: 'Ana Silva', 
+    role: 'Gestora de Contas / Onboarding', 
+    email: 'ana@powerponto.com.br', 
+    userRole: 'admin', 
+    avatarUrl: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&auto=format&fit=crop&q=80',
+    status: 'active',
+    lastAccess: '2026-06-14T19:30:00Z'
+  },
+  { 
+    id: '2', 
+    organizationId: 'org_hub_power', 
+    name: 'João Santos', 
+    role: 'Social Media & Designer', 
+    email: 'joao@powerponto.com.br', 
+    userRole: 'member', 
+    avatarUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&auto=format&fit=crop&q=80',
+    status: 'active',
+    lastAccess: '2026-06-14T18:45:00Z'
+  },
+  { 
+    id: '3', 
+    organizationId: 'org_hub_power', 
+    name: 'Maria Souza', 
+    role: 'Gestora de Tráfego Pago', 
+    email: 'maria@powerponto.com.br', 
+    userRole: 'member', 
+    avatarUrl: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&auto=format&fit=crop&q=80',
+    status: 'active',
+    lastAccess: '2026-06-14T17:15:00Z'
+  },
+  { 
+    id: '4', 
+    organizationId: 'org_hub_power', 
+    name: 'Carlos Santos', 
+    role: 'Diretor Comercial', 
+    email: 'carlos@powerponto.com.br', 
+    userRole: 'owner', 
+    avatarUrl: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&auto=format&fit=crop&q=80',
+    status: 'active',
+    lastAccess: '2026-06-14T19:55:00Z'
+  },
+  { 
+    id: '5', 
+    organizationId: 'org_spark', 
+    name: 'Roberto Lima', 
+    role: 'Diretor Criativo', 
+    email: 'roberto@sparkagency.com', 
+    userRole: 'owner', 
+    avatarUrl: '',
+    status: 'active',
+    lastAccess: '2026-06-14T12:00:00Z'
+  },
+  { 
+    id: '6', 
+    organizationId: 'org_spark', 
+    name: 'Alice Costa', 
+    role: 'Copywriter & Ads', 
+    email: 'alice@sparkagency.com', 
+    userRole: 'member', 
+    avatarUrl: '',
+    status: 'active',
+    lastAccess: '2026-06-13T16:20:00Z'
+  },
+  {
+    id: '7',
+    organizationId: 'org_morales',
+    name: 'Carlos Morales',
+    role: 'CEO & Diretor de TI',
+    email: 'carlos@morales.com.br',
+    userRole: 'owner',
+    avatarUrl: '',
+    status: 'active',
+    lastAccess: '2026-06-14T20:01:00Z'
+  },
+  {
+    id: '8',
+    organizationId: 'org_morales',
+    name: 'Fabiana Melo',
+    role: 'Gerente Comercial',
+    email: 'fabiana@morales.com.br',
+    userRole: 'admin',
+    avatarUrl: '',
+    status: 'active',
+    lastAccess: '2026-06-14T19:10:00Z'
+  }
 ];
 
 const initialClients: Client[] = [
   {
     id: 'c1',
+    organizationId: 'org_hub_power',
     name: 'Roberto Souza',
     companyName: 'Power Energy Ltda',
     cnpj: '12.345.678/0001-90',
@@ -93,6 +481,7 @@ const initialClients: Client[] = [
   },
   {
     id: 'c2',
+    organizationId: 'org_hub_power',
     name: 'Carolina Lima',
     companyName: 'Ponto de Encontro Café',
     cnpj: '98.765.432/0001-10',
@@ -105,6 +494,7 @@ const initialClients: Client[] = [
   },
   {
     id: 'c3',
+    organizationId: 'org_hub_power',
     name: 'Gabriel Faria',
     companyName: 'Alfa Tech Consultoria',
     cnpj: '55.444.333/0001-22',
@@ -114,12 +504,65 @@ const initialClients: Client[] = [
     commercialStatus: 'lead',
     notes: 'Proposta comercial enviada. Avaliando escopo de tráfego e posts de LinkedIn.',
     createdAt: '2026-06-05T09:15:00Z'
+  },
+  {
+    id: 'c_s1',
+    organizationId: 'org_spark',
+    name: 'Eduardo Rocha',
+    companyName: 'Spark Solar',
+    cnpj: '33.222.111/0001-00',
+    phone: '(11) 97777-8888',
+    email: 'eduardo@sparksolar.com',
+    responsibleUser: 'Roberto Lima',
+    commercialStatus: 'active',
+    notes: 'Cliente de energia solar da Spark Agency.',
+    createdAt: '2026-06-01T10:00:00Z'
+  },
+  {
+    id: 'c_s2',
+    organizationId: 'org_spark',
+    name: 'Mariana Costa',
+    companyName: 'Estilo Modas',
+    cnpj: '22.111.000/0001-99',
+    phone: '(11) 96666-7777',
+    email: 'mariana@estilomodas.com',
+    responsibleUser: 'Alice Costa',
+    commercialStatus: 'lead',
+    notes: 'Lead interessado em tráfego de e-commerce.',
+    createdAt: '2026-06-02T11:00:00Z'
+  },
+  {
+    id: 'c_m1',
+    organizationId: 'org_morales',
+    name: 'Beatriz Reis',
+    companyName: 'Reis & Advogados Associados',
+    cnpj: '99.888.777/0001-00',
+    phone: '(11) 95555-4444',
+    email: 'beatriz@reisadvogados.com.br',
+    responsibleUser: 'Fabiana Melo',
+    commercialStatus: 'active',
+    notes: 'Contrato de SEO e Blog Corporativo para advocacia.',
+    createdAt: '2026-06-10T10:00:00Z'
+  },
+  {
+    id: 'c_m2',
+    organizationId: 'org_morales',
+    name: 'Lucas Belo',
+    companyName: 'Belo Pão Panificadora',
+    cnpj: '11.222.333/0001-44',
+    phone: '(11) 94444-3333',
+    email: 'lucas@belopao.com.br',
+    responsibleUser: 'Fabiana Melo',
+    commercialStatus: 'onboarding',
+    notes: 'Onboarding de tráfego local.',
+    createdAt: '2026-06-12T11:00:00Z'
   }
 ];
 
 const initialProposals: Proposal[] = [
   {
     id: 'p1',
+    organizationId: 'org_hub_power',
     clientId: 'c3',
     clientName: 'Gabriel Faria',
     companyName: 'Alfa Tech Consultoria',
@@ -139,6 +582,7 @@ const initialProposals: Proposal[] = [
   },
   {
     id: 'p2',
+    organizationId: 'org_hub_power',
     clientId: 'c2',
     clientName: 'Carolina Lima',
     companyName: 'Ponto de Encontro Café',
@@ -154,12 +598,81 @@ const initialProposals: Proposal[] = [
     notes: 'Proposta negociada em reunião inicial.',
     status: 'accepted',
     createdAt: '2026-06-01T15:00:00Z'
+  },
+  {
+    id: 'p_s1',
+    organizationId: 'org_spark',
+    clientId: 'c_s1',
+    clientName: 'Eduardo Rocha',
+    companyName: 'Spark Solar',
+    description: 'Design de Branding & Logo',
+    items: [
+      { id: 'pi_s1', description: 'Criação de logotipo principal e manual de identidade', value: 2000.0, isMonthly: false }
+    ],
+    totalValue: 2000.0,
+    monthlyValue: 0.0,
+    validityDate: '2026-07-01',
+    paymentTerms: 'PIX à vista.',
+    status: 'accepted',
+    createdAt: '2026-06-01T12:00:00Z'
+  },
+  {
+    id: 'p_s2',
+    organizationId: 'org_spark',
+    clientId: 'c_s2',
+    clientName: 'Mariana Costa',
+    companyName: 'Estilo Modas',
+    description: 'Gestão de Tráfego Pago Starter',
+    items: [
+      { id: 'pi_s2', description: 'Gestão mensal Meta Ads', value: 1200.0, isMonthly: true }
+    ],
+    totalValue: 1200.0,
+    monthlyValue: 1200.0,
+    validityDate: '2026-06-25',
+    paymentTerms: 'Boleto bancário recorrente',
+    status: 'sent',
+    createdAt: '2026-06-02T14:00:00Z'
+  },
+  {
+    id: 'p_m1',
+    organizationId: 'org_morales',
+    clientId: 'c_m1',
+    clientName: 'Beatriz Reis',
+    companyName: 'Reis & Advogados Associados',
+    description: 'Marketing de Conteúdo & Otimização SEO',
+    items: [
+      { id: 'pi_m1', description: 'Criação de artigos e otimização on-page', value: 4500.0, isMonthly: true }
+    ],
+    totalValue: 4500.0,
+    monthlyValue: 4500.0,
+    validityDate: '2026-07-10',
+    paymentTerms: 'Boleto 10 dias',
+    status: 'accepted',
+    createdAt: '2026-06-10T11:00:00Z'
+  },
+  {
+    id: 'p_m2',
+    organizationId: 'org_morales',
+    clientId: 'c_m2',
+    clientName: 'Lucas Belo',
+    companyName: 'Belo Pão Panificadora',
+    description: 'Marketing Local e Tráfego Pago',
+    items: [
+      { id: 'pi_m2', description: 'Google Business Profile & Anúncios Locais', value: 2500.0, isMonthly: true }
+    ],
+    totalValue: 2500.0,
+    monthlyValue: 2500.0,
+    validityDate: '2026-07-15',
+    paymentTerms: 'Cartão de crédito ou PIX Asaas recorrente',
+    status: 'draft',
+    createdAt: '2026-06-12T11:30:00Z'
   }
 ];
 
 const initialContracts: Contract[] = [
   {
     id: 'ct1',
+    organizationId: 'org_hub_power',
     clientId: 'c2',
     clientName: 'Carolina Lima',
     companyName: 'Ponto de Encontro Café',
@@ -173,12 +686,45 @@ const initialContracts: Contract[] = [
     documentUrl: 'https://zapsign.com.br/sign/mock-ponto-de-encontro-cafe',
     version: 'v1.0',
     createdAt: '2026-06-02T09:00:00Z'
+  },
+  {
+    id: 'ct_s1',
+    organizationId: 'org_spark',
+    clientId: 'c_s1',
+    clientName: 'Eduardo Rocha',
+    companyName: 'Spark Solar',
+    proposalId: 'p_s1',
+    type: 'Design de Branding & Logo',
+    value: 2000.0,
+    monthlyValue: 0.0,
+    startDate: '2026-06-02',
+    firstPaymentDate: '2026-06-02',
+    status: 'signed',
+    version: 'v1.0',
+    createdAt: '2026-06-02T09:00:00Z'
+  },
+  {
+    id: 'ct_m1',
+    organizationId: 'org_morales',
+    clientId: 'c_m1',
+    clientName: 'Beatriz Reis',
+    companyName: 'Reis & Advogados Associados',
+    proposalId: 'p_m1',
+    type: 'Marketing de Conteúdo & Otimização SEO',
+    value: 4500.0,
+    monthlyValue: 4500.0,
+    startDate: '2026-06-11',
+    firstPaymentDate: '2026-06-15',
+    status: 'signed',
+    version: 'v1.0',
+    createdAt: '2026-06-10T12:00:00Z'
   }
 ];
 
 const initialCharges: Charge[] = [
   {
     id: 'ch1',
+    organizationId: 'org_hub_power',
     clientId: 'c2',
     clientName: 'Carolina Lima',
     companyName: 'Ponto de Encontro Café',
@@ -189,12 +735,41 @@ const initialCharges: Charge[] = [
     paymentUrl: 'https://cobranca.asaas.com/mock-cobranca-ponto-cafe',
     status: 'pending',
     createdAt: '2026-06-02T09:30:00Z'
+  },
+  {
+    id: 'ch_s1',
+    organizationId: 'org_spark',
+    clientId: 'c_s1',
+    clientName: 'Eduardo Rocha',
+    companyName: 'Spark Solar',
+    contractId: 'ct_s1',
+    value: 2000.0,
+    dueDate: '2026-06-02',
+    paymentMethod: 'pix',
+    status: 'paid',
+    paidAt: '2026-06-02T10:00:00Z',
+    createdAt: '2026-06-02T09:05:00Z'
+  },
+  {
+    id: 'ch_m1',
+    organizationId: 'org_morales',
+    clientId: 'c_m1',
+    clientName: 'Beatriz Reis',
+    companyName: 'Reis & Advogados Associados',
+    contractId: 'ct_m1',
+    value: 4500.0,
+    dueDate: '2026-06-15',
+    paymentMethod: 'pix',
+    status: 'paid',
+    paidAt: '2026-06-15T09:00:00Z',
+    createdAt: '2026-06-10T13:00:00Z'
   }
 ];
 
 const initialOnboardings: Onboarding[] = [
   {
     id: 'o1',
+    organizationId: 'org_hub_power',
     clientId: 'c2',
     clientName: 'Carolina Lima',
     companyName: 'Ponto de Encontro Café',
@@ -217,12 +792,65 @@ const initialOnboardings: Onboarding[] = [
       proposal: 'p2'
     },
     createdAt: '2026-06-02T10:00:00Z'
+  },
+  {
+    id: 'o_s1',
+    organizationId: 'org_spark',
+    clientId: 'c_s1',
+    clientName: 'Eduardo Rocha',
+    companyName: 'Spark Solar',
+    startDate: '2026-06-02',
+    responsibleUser: 'Roberto Lima',
+    steps: {
+      paymentConfirmed: 'completed',
+      driveCreated: 'completed',
+      clickupCreated: 'completed',
+      tasksCreated: 'completed',
+      onboardingMeeting: 'completed',
+      completed: 'completed'
+    },
+    links: {
+      googleDrive: 'https://drive.google.com/drive/folders/mock-sparksolar',
+      clickup: 'https://app.clickup.com/folders/mock-sparksolar',
+      whatsAppGroup: 'https://chat.whatsapp.com/mock-sparksolar',
+      contract: '',
+      charge: '',
+      proposal: 'p_s1'
+    },
+    createdAt: '2026-06-02T10:00:00Z'
+  },
+  {
+    id: 'o_m1',
+    organizationId: 'org_morales',
+    clientId: 'c_m1',
+    clientName: 'Beatriz Reis',
+    companyName: 'Reis & Advogados Associados',
+    startDate: '2026-06-10',
+    responsibleUser: 'Fabiana Melo',
+    steps: {
+      paymentConfirmed: 'completed',
+      driveCreated: 'completed',
+      clickupCreated: 'completed',
+      tasksCreated: 'completed',
+      onboardingMeeting: 'completed',
+      completed: 'completed'
+    },
+    links: {
+      googleDrive: 'https://drive.google.com/drive/folders/mock-moralesadv',
+      clickup: 'https://app.clickup.com/folders/mock-moralesadv',
+      whatsAppGroup: 'https://chat.whatsapp.com/mock-moralesadv',
+      contract: '',
+      charge: '',
+      proposal: 'p_m1'
+    },
+    createdAt: '2026-06-10T14:00:00Z'
   }
 ];
 
 const initialPublications: Publication[] = [
   {
     id: 'pub1',
+    organizationId: 'org_hub_power',
     clientId: 'c1',
     clientName: 'Roberto Souza',
     companyName: 'Power Energy Ltda',
@@ -230,12 +858,13 @@ const initialPublications: Publication[] = [
     caption: '⚡ A transição para energia limpa não é mais o futuro, é o presente. Empresas que adotam fontes renováveis reduzem custos operacionais em até 30% e geram um impacto ambiental positivo imediato. Fale conosco para entender como podemos ajudar o seu negócio a decolar sustentavelmente! #EnergiaSolar #Sustentabilidade #Economia',
     scheduledDate: '2026-06-15',
     status: 'approved',
-    approvalLink: 'https://hubpowerponto.com/aprovar/pub1',
+    approvalLink: 'https://garoflow.com.br/aprovar/pub1',
     responsibleUser: 'João Santos',
     createdAt: '2026-06-08T14:00:00Z'
   },
   {
     id: 'pub2',
+    organizationId: 'org_hub_power',
     clientId: 'c2',
     clientName: 'Carolina Lima',
     companyName: 'Ponto de Encontro Café',
@@ -243,15 +872,30 @@ const initialPublications: Publication[] = [
     caption: '☕ O aroma de um café especial moído na hora tem o poder de transformar qualquer dia produtivo. No Ponto de Encontro, selecionamos grãos de pequenos produtores nacionais para garantir a xícara perfeita para suas reuniões ou pausas criativas. Venha trabalhar e se deliciar! #CafeEspecial #CoffeeLover #EspacoCoworking',
     scheduledDate: '2026-06-18',
     status: 'pending_approval',
-    approvalLink: 'https://hubpowerponto.com/aprovar/pub2',
+    approvalLink: 'https://garoflow.com.br/aprovar/pub2',
     responsibleUser: 'João Santos',
     createdAt: '2026-06-10T11:00:00Z'
+  },
+  {
+    id: 'pub_m1',
+    organizationId: 'org_morales',
+    clientId: 'c_m1',
+    clientName: 'Beatriz Reis',
+    companyName: 'Reis & Advogados Associados',
+    imageUrl: 'https://images.unsplash.com/photo-1450133064473-71024230f91b?w=600&auto=format&fit=crop&q=80',
+    caption: '⚖️ Como a nova reforma tributária afeta o planejamento fiscal da sua empresa? Nosso time de especialistas preparou um guia exclusivo simplificando as principais mudanças para o seu negócio. Acesse nosso blog e leia na íntegra! #DireitoTributario #PlanejamentoFiscal #ReformaTributaria',
+    scheduledDate: '2026-06-25',
+    status: 'approved',
+    approvalLink: 'https://garoflow.com.br/aprovar/pub_m1',
+    responsibleUser: 'Carlos Morales',
+    createdAt: '2026-06-12T10:00:00Z'
   }
 ];
 
 const initialTasks: TeamTask[] = [
   {
     id: 't1',
+    organizationId: 'org_hub_power',
     title: 'Fazer Reunião de Briefing de Onboarding',
     clientId: 'c2',
     clientName: 'Ponto de Encontro Café',
@@ -264,6 +908,7 @@ const initialTasks: TeamTask[] = [
   },
   {
     id: 't2',
+    organizationId: 'org_hub_power',
     title: 'Criar criativos do post de Café Especial',
     clientId: 'c2',
     clientName: 'Ponto de Encontro Café',
@@ -276,6 +921,7 @@ const initialTasks: TeamTask[] = [
   },
   {
     id: 't3',
+    organizationId: 'org_hub_power',
     title: 'Mapear Público-Alvo e Configurar Pixel Facebook',
     clientId: 'c2',
     clientName: 'Ponto de Encontro Café',
@@ -285,12 +931,39 @@ const initialTasks: TeamTask[] = [
     priority: 'urgent',
     description: 'Instalar pixel de conversão no site do café e configurar campanhas de tráfego de geolocalização.',
     createdAt: '2026-06-05T15:00:00Z'
+  },
+  {
+    id: 't_s1',
+    organizationId: 'org_spark',
+    title: 'Desenhar rascunhos de logo',
+    clientId: 'c_s1',
+    clientName: 'Spark Solar',
+    responsibleUser: 'Roberto Lima',
+    dueDate: '2026-06-15',
+    status: 'completed',
+    priority: 'medium',
+    description: 'Esboços iniciais de design de marca.',
+    createdAt: '2026-06-02T10:00:00Z'
+  },
+  {
+    id: 't_m1',
+    organizationId: 'org_morales',
+    title: 'Pesquisa de Palavras-Chave Jurídicas',
+    clientId: 'c_m1',
+    clientName: 'Reis & Advogados Associados',
+    responsibleUser: 'Carlos Morales',
+    dueDate: '2026-06-20',
+    status: 'in_progress',
+    priority: 'high',
+    description: 'Pesquisa detalhada de volumes de busca para termos de direito tributário e empresarial.',
+    createdAt: '2026-06-11T10:00:00Z'
   }
 ];
 
 const initialHistory: HistoryEvent[] = [
   {
     id: 'h1',
+    organizationId: 'org_hub_power',
     clientId: 'c1',
     clientName: 'Power Energy Ltda',
     title: 'Cliente Criado',
@@ -300,6 +973,7 @@ const initialHistory: HistoryEvent[] = [
   },
   {
     id: 'h2',
+    organizationId: 'org_hub_power',
     clientId: 'c2',
     clientName: 'Ponto de Encontro Café',
     title: 'Cliente Criado',
@@ -309,6 +983,7 @@ const initialHistory: HistoryEvent[] = [
   },
   {
     id: 'h3',
+    organizationId: 'org_hub_power',
     clientId: 'c2',
     clientName: 'Ponto de Encontro Café',
     title: 'Proposta Comercial Criada',
@@ -318,6 +993,7 @@ const initialHistory: HistoryEvent[] = [
   },
   {
     id: 'h4',
+    organizationId: 'org_hub_power',
     clientId: 'c2',
     clientName: 'Ponto de Encontro Café',
     title: 'Proposta Aceita pelo Cliente',
@@ -327,6 +1003,7 @@ const initialHistory: HistoryEvent[] = [
   },
   {
     id: 'h5',
+    organizationId: 'org_hub_power',
     clientId: 'c2',
     clientName: 'Ponto de Encontro Café',
     title: 'Contrato Gerado Automaticamente',
@@ -336,18 +1013,61 @@ const initialHistory: HistoryEvent[] = [
   },
   {
     id: 'h6',
+    organizationId: 'org_hub_power',
     clientId: 'c2',
     clientName: 'Ponto de Encontro Café',
     title: 'Cobrança Financeira Gerada',
     description: 'Cobrança recorrente de R$ 3.500,00 criada no integrador Asaas.',
     type: 'charge_generated',
     createdAt: '2026-06-02T09:30:00Z'
+  },
+  {
+    id: 'h_s1',
+    organizationId: 'org_spark',
+    clientId: 'c_s1',
+    clientName: 'Spark Solar',
+    title: 'Cliente Criado',
+    description: 'Spark Solar cadastrado por Roberto Lima.',
+    type: 'client_created',
+    createdAt: '2026-06-01T10:00:00Z'
+  },
+  {
+    id: 'h_s2',
+    organizationId: 'org_spark',
+    clientId: 'c_s1',
+    clientName: 'Spark Solar',
+    title: 'Contrato Assinado',
+    description: 'Contrato assinado via ZapSign.',
+    type: 'contract_signed',
+    createdAt: '2026-06-02T09:00:00Z'
+  },
+  {
+    id: 'h_m1',
+    organizationId: 'org_morales',
+    clientId: 'c_m1',
+    clientName: 'Reis & Advogados Associados',
+    title: 'Cliente Criado',
+    description: 'Reis & Advogados Associados cadastrado por Fabiana Melo.',
+    type: 'client_created',
+    createdAt: '2026-06-10T10:00:00Z'
+  },
+  {
+    id: 'h_m2',
+    organizationId: 'org_morales',
+    clientId: 'c_m1',
+    clientName: 'Reis & Advogados Associados',
+    title: 'Contrato Assinado',
+    description: 'Contrato de SEO assinado via ZapSign por Beatriz Reis.',
+    type: 'contract_signed',
+    createdAt: '2026-06-10T12:00:00Z'
   }
 ];
 
 export const useStore = create<SystemState>()(
   persist(
     (set, get) => ({
+      organizations: initialOrganizations,
+      currentOrganizationId: 'org_hub_power',
       clients: initialClients,
       proposals: initialProposals,
       contracts: initialContracts,
@@ -358,19 +1078,396 @@ export const useStore = create<SystemState>()(
       historyEvents: initialHistory,
       teamMembers: initialTeamMembers,
       currentUser: initialTeamMembers[0], // Ana Silva default
+      integrations: initialIntegrations,
+      leads: initialLeads,
       activeSetupClientId: null,
       activeSetupStep: 'none',
       isSetupDismissed: false,
       clearActiveSetup: () => set({ activeSetupClientId: null, activeSetupStep: 'none', isSetupDismissed: false }),
       setSetupDismissed: (dismissed) => set({ isSetupDismissed: dismissed }),
       
+      setCurrentOrganizationId: (id) => {
+        // Change currentUser dynamically depending on the selected organization to mock authentication
+        const orgMembers = get().teamMembers.filter(m => m.organizationId === id);
+        const nextUser = orgMembers[0] || initialTeamMembers[0];
+        set({ currentOrganizationId: id, currentUser: nextUser });
+      },
+
+      upgradePlan: (planId, orgId) => {
+        const targetOrgId = orgId || get().currentOrganizationId;
+        set((state) => ({
+          organizations: state.organizations.map((org) => 
+            org.id === targetOrgId ? { ...org, planId } : org
+          )
+        }));
+      },
+
+      updateOrganizationStatus: (orgId, status) => {
+        set((state) => ({
+          organizations: state.organizations.map((org) => 
+            org.id === orgId ? { ...org, status } : org
+          )
+        }));
+      },
+
+      updateTeamMemberRole: (id, userRole) => {
+        set((state) => ({
+          teamMembers: state.teamMembers.map((m) => m.id === id ? { ...m, userRole } : m)
+        }));
+      },
+
+      updateTeamMemberStatus: (id, status) => {
+        set((state) => ({
+          teamMembers: state.teamMembers.map((m) => m.id === id ? { ...m, status } : m)
+        }));
+      },
+
+      updateIntegration: (orgId, data) => {
+        set((state) => ({
+          integrations: state.integrations.map((item) =>
+            item.organizationId === orgId ? { ...item, ...data } : item
+          )
+        }));
+
+        const updatedKeys = Object.keys(data);
+        let serviceName = "integrações";
+        if (updatedKeys.some(k => k.startsWith('asaas'))) serviceName = "Asaas";
+        else if (updatedKeys.some(k => k.startsWith('clickup'))) serviceName = "ClickUp";
+        else if (updatedKeys.some(k => k.startsWith('googleKey') || k.startsWith('googleFolder'))) serviceName = "Google Suite (Drive/Docs)";
+        else if (updatedKeys.some(k => k.startsWith('zapsign'))) serviceName = "ZapSign";
+        else if (updatedKeys.some(k => k.startsWith('whatsapp'))) serviceName = "WhatsApp";
+        else if (updatedKeys.some(k => k.startsWith('metaAds'))) serviceName = "Meta Ads";
+        else if (updatedKeys.some(k => k.startsWith('googleAds'))) serviceName = "Google Ads";
+
+        get().addHistoryEvent({
+          title: '[Configurações] Integração Salva',
+          description: `Configurações da integração com ${serviceName} foram salvas por ${get().currentUser.name}.`,
+          type: 'drive_created',
+          organizationId: orgId
+        });
+      },
+
+      testIntegrationConnection: (orgId, service) => {
+        const statusFieldMap: Record<string, keyof TenantIntegration> = {
+          asaas: 'asaasStatus',
+          clickup: 'clickupStatus',
+          googleDrive: 'googleDriveStatus',
+          zapsign: 'zapsignStatus',
+          whatsapp: 'whatsappStatus',
+          metaAds: 'metaAdsStatus',
+          googleAds: 'googleAdsStatus'
+        };
+
+        const field = statusFieldMap[service];
+        if (field) {
+          set((state) => ({
+            integrations: state.integrations.map((item) =>
+              item.organizationId === orgId ? { ...item, [field]: 'connected' } : item
+            )
+          }));
+        }
+
+        const serviceNames: Record<string, string> = {
+          asaas: 'Asaas',
+          clickup: 'ClickUp',
+          googleDrive: 'Google Drive/Docs',
+          zapsign: 'ZapSign',
+          whatsapp: 'WhatsApp',
+          metaAds: 'Meta Ads',
+          googleAds: 'Google Ads'
+        };
+
+        get().addHistoryEvent({
+          title: '[Configurações] Conexão Testada',
+          description: `Conexão simulada com ${serviceNames[service] || service} testada por ${get().currentUser.name}.`,
+          type: 'drive_created',
+          organizationId: orgId
+        });
+      },
+
+      addLead: (leadData) => {
+        const targetOrgId = leadData.organizationId || get().currentOrganizationId;
+        const newLead: Lead = {
+          ...leadData,
+          id: `l_${Date.now()}`,
+          organizationId: targetOrgId,
+          createdAt: new Date().toISOString(),
+          lastInteraction: new Date().toISOString()
+        } as Lead;
+
+        set((state) => ({
+          leads: [newLead, ...state.leads]
+        }));
+
+        get().addHistoryEvent({
+          title: '[Leads] Novo Lead Cadastrado',
+          description: `Lead ${newLead.name} foi adicionado manualmente por ${get().currentUser.name}.`,
+          type: 'client_created',
+          organizationId: targetOrgId
+        });
+
+        return newLead;
+      },
+
+      updateLeadStatus: (leadId, status) => {
+        const lead = get().leads.find(l => l.id === leadId);
+        if (!lead) return;
+
+        set((state) => ({
+          leads: state.leads.map((l) =>
+            l.id === leadId ? { ...l, status, lastInteraction: new Date().toISOString() } : l
+          )
+        }));
+
+        const statusLabels: Record<LeadStatus, string> = {
+          new: 'Novo',
+          in_progress: 'Em atendimento',
+          qualified: 'Qualificado',
+          meeting: 'Reunião marcada',
+          proposal_requested: 'Proposta solicitada',
+          converted: 'Convertido',
+          lost: 'Perdido'
+        };
+
+        get().addHistoryEvent({
+          title: '[Leads] Status Atualizado',
+          description: `Status do lead ${lead.name} alterado para "${statusLabels[status]}" por ${get().currentUser.name}.`,
+          type: 'client_created',
+          organizationId: lead.organizationId
+        });
+      },
+
+      updateLeadTemperature: (leadId, temperature) => {
+        const lead = get().leads.find(l => l.id === leadId);
+        if (!lead) return;
+
+        set((state) => ({
+          leads: state.leads.map((l) =>
+            l.id === leadId ? { ...l, temperature, lastInteraction: new Date().toISOString() } : l
+          )
+        }));
+
+        const tempLabels: Record<LeadTemperature, string> = {
+          cold: 'Frio',
+          warm: 'Morno',
+          hot: 'Quente'
+        };
+
+        get().addHistoryEvent({
+          title: '[Leads] Temperatura Atualizada',
+          description: `Temperatura do lead ${lead.name} definida como "${tempLabels[temperature]}" por ${get().currentUser.name}.`,
+          type: 'client_created',
+          organizationId: lead.organizationId
+        });
+      },
+
+      assignLead: (leadId, responsibleUser) => {
+        const lead = get().leads.find(l => l.id === leadId);
+        if (!lead) return;
+
+        set((state) => ({
+          leads: state.leads.map((l) =>
+            l.id === leadId ? { ...l, responsibleUser, lastInteraction: new Date().toISOString() } : l
+          )
+        }));
+
+        get().addHistoryEvent({
+          title: '[Leads] Responsável Definido',
+          description: `Lead ${lead.name} foi atribuído a ${responsibleUser} por ${get().currentUser.name}.`,
+          type: 'client_created',
+          organizationId: lead.organizationId
+        });
+      },
+
+      addLeadNote: (leadId, note) => {
+        const lead = get().leads.find(l => l.id === leadId);
+        if (!lead) return;
+
+        set((state) => ({
+          leads: state.leads.map((l) =>
+            l.id === leadId ? { ...l, notes: note, lastInteraction: new Date().toISOString() } : l
+          )
+        }));
+
+        get().addHistoryEvent({
+          title: '[Leads] Observação Adicionada',
+          description: `Nova anotação inserida no lead ${lead.name} por ${get().currentUser.name}.`,
+          type: 'client_created',
+          organizationId: lead.organizationId
+        });
+      },
+
+      convertLeadToClient: (leadId) => {
+        const lead = get().leads.find(l => l.id === leadId);
+        if (!lead) return null;
+
+        const targetOrgId = lead.organizationId;
+
+        // Check if client with same email or phone already exists in this tenant
+        const existingClient = get().clients.find(c => 
+          c.organizationId === targetOrgId && 
+          (c.email.toLowerCase() === lead.email.toLowerCase() || c.phone.replace(/\D/g, '') === lead.phone.replace(/\D/g, ''))
+        );
+
+        if (existingClient) {
+          // Mark lead as converted but return existing client to avoid duplication
+          set((state) => ({
+            leads: state.leads.map(l => l.id === leadId ? { ...l, status: 'converted', lastInteraction: new Date().toISOString() } : l)
+          }));
+          
+          get().addHistoryEvent({
+            clientId: existingClient.id,
+            clientName: existingClient.companyName,
+            title: '[Leads] Lead Associado a Cliente Existente',
+            description: `Lead ${lead.name} associado ao cliente existente ${existingClient.companyName} por ${get().currentUser.name}.`,
+            type: 'client_created',
+            organizationId: targetOrgId
+          });
+
+          return existingClient;
+        }
+
+        const newClient = get().addClient({
+          name: lead.name,
+          companyName: lead.companyName || `${lead.name} Ltda`,
+          cnpj: '',
+          phone: lead.phone,
+          email: lead.email,
+          responsibleUser: lead.responsibleUser,
+          commercialStatus: 'active',
+          notes: lead.notes || `Convertido a partir do Lead originário de ${lead.origin}.`,
+          organizationId: targetOrgId
+        });
+
+        set((state) => ({
+          leads: state.leads.map(l => l.id === leadId ? { ...l, status: 'converted', lastInteraction: new Date().toISOString() } : l)
+        }));
+
+        get().addHistoryEvent({
+          clientId: newClient?.id,
+          clientName: newClient?.companyName,
+          title: '[Leads] Lead Convertido',
+          description: `Lead ${lead.name} convertido em cliente por ${get().currentUser.name}.`,
+          type: 'client_created',
+          organizationId: targetOrgId
+        });
+
+        return newClient;
+      },
+
+      createProposalFromLead: (leadId) => {
+        const lead = get().leads.find(l => l.id === leadId);
+        if (!lead) return null;
+
+        const targetOrgId = lead.organizationId;
+
+        // Find or convert to client
+        let client: Client | null = get().clients.find(c => c.organizationId === targetOrgId && c.email.toLowerCase() === lead.email.toLowerCase()) || null;
+        if (!client) {
+          client = get().convertLeadToClient(leadId);
+        }
+
+        if (!client) return null;
+
+        const newProposal = get().addProposal({
+          clientId: client.id,
+          clientName: client.name,
+          companyName: client.companyName,
+          description: `Proposta de Serviço - Tráfego & Social Media (Central de Leads)`,
+          items: [
+            { id: `pi_${Date.now()}`, description: `Setup e Gestão Mensal de Campanhas - Originado do Lead (${lead.origin})`, value: 2500, isMonthly: true }
+          ],
+          totalValue: 2500,
+          monthlyValue: 2500,
+          validityDate: new Date(Date.now() + 15*24*60*60*1000).toISOString().split('T')[0],
+          paymentTerms: 'Boleto via Asaas recorrente',
+          notes: `Proposta gerada automaticamente a partir do lead ${lead.name}.`,
+          organizationId: targetOrgId
+        });
+
+        set((state) => ({
+          leads: state.leads.map(l => l.id === leadId ? { ...l, status: 'proposal_requested', lastInteraction: new Date().toISOString() } : l)
+        }));
+
+        get().addHistoryEvent({
+          clientId: client.id,
+          clientName: client.companyName,
+          title: '[Leads] Proposta Criada',
+          description: `Proposta de venda criada a partir do lead ${lead.name} por ${get().currentUser.name}.`,
+          type: 'proposal_created',
+          organizationId: targetOrgId
+        });
+
+        return newProposal;
+      },
+
+      markLeadAsLost: (leadId, reason) => {
+        const lead = get().leads.find(l => l.id === leadId);
+        if (!lead) return;
+
+        set((state) => ({
+          leads: state.leads.map((l) =>
+            l.id === leadId ? { ...l, status: 'lost', notes: l.notes ? `${l.notes} | Perda: ${reason}` : `Motivo de perda: ${reason}`, lastInteraction: new Date().toISOString() } : l
+          )
+        }));
+
+        get().addHistoryEvent({
+          title: '[Leads] Lead Descartado',
+          description: `Lead ${lead.name} marcado como perdido por ${get().currentUser.name}. Motivo: ${reason}`,
+          type: 'client_created',
+          organizationId: lead.organizationId
+        });
+      },
+
+      checkLimit: (type, orgId) => {
+        const state = get();
+        const targetOrgId = orgId || state.currentOrganizationId;
+        const org = state.organizations.find(o => o.id === targetOrgId);
+        if (!org) return true;
+        
+        const planLimits: Record<PlanType, PlanLimits> = {
+          starter: { clients: 3, users: 2, proposals: 5, tasks: 10, hasIntegrations: false },
+          pro: { clients: 30, users: 5, proposals: 50, tasks: 99999, hasIntegrations: true },
+          enterprise: { clients: 99999, users: 99999, proposals: 99999, tasks: 99999, hasIntegrations: true }
+        };
+        
+        const limits = planLimits[org.planId];
+        
+        switch (type) {
+          case 'clients': {
+            const count = state.clients.filter(c => c.organizationId === targetOrgId).length;
+            return count < limits.clients;
+          }
+          case 'users': {
+            const count = state.teamMembers.filter(m => m.organizationId === targetOrgId).length;
+            return count < limits.users;
+          }
+          case 'proposals': {
+            const count = state.proposals.filter(p => p.organizationId === targetOrgId).length;
+            return count < limits.proposals;
+          }
+          case 'tasks': {
+            const count = state.tasks.filter(t => t.organizationId === targetOrgId).length;
+            return count < limits.tasks;
+          }
+          default:
+            return true;
+        }
+      },
+
       // Actions
       addClient: (clientData) => {
+        const targetOrgId = clientData.organizationId || get().currentOrganizationId;
+        if (!get().checkLimit('clients', targetOrgId)) {
+          return null; // Limit exceeded
+        }
+
         const newClient: Client = {
           ...clientData,
           id: `c_${Date.now()}`,
+          organizationId: targetOrgId,
           createdAt: new Date().toISOString()
-        };
+        } as Client;
         
         set((state) => ({
           clients: [newClient, ...state.clients],
@@ -381,7 +1478,8 @@ export const useStore = create<SystemState>()(
           clientName: newClient.name,
           title: 'Cliente Cadastrado',
           description: `Novo cliente comercial ${newClient.companyName} cadastrado no sistema por ${get().currentUser.name}.`,
-          type: 'client_created'
+          type: 'client_created',
+          organizationId: targetOrgId
         });
         
         return newClient;
@@ -394,12 +1492,18 @@ export const useStore = create<SystemState>()(
       },
       
       addProposal: (proposalData) => {
+        const targetOrgId = proposalData.organizationId || get().currentOrganizationId;
+        if (!get().checkLimit('proposals', targetOrgId)) {
+          return null; // Limit exceeded
+        }
+
         const newProposal: Proposal = {
           ...proposalData,
           id: `p_${Date.now()}`,
+          organizationId: targetOrgId,
           status: 'draft',
           createdAt: new Date().toISOString()
-        };
+        } as Proposal;
         
         set((state) => ({
           proposals: [newProposal, ...state.proposals]
@@ -410,7 +1514,8 @@ export const useStore = create<SystemState>()(
           clientName: newProposal.clientName,
           title: 'Proposta Comercial Criada',
           description: `Nova proposta de R$ ${newProposal.totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} elaborada sob status Rascunho.`,
-          type: 'proposal_created'
+          type: 'proposal_created',
+          organizationId: targetOrgId
         });
         
         return newProposal;
@@ -428,7 +1533,8 @@ export const useStore = create<SystemState>()(
             clientName: proposal.clientName,
             title: `Proposta Status Atualizado: ${status}`,
             description: `A proposta comercial mudou seu status para '${status}'.`,
-            type: 'proposal_sent'
+            type: 'proposal_sent',
+            organizationId: proposal.organizationId
           });
         }
       },
@@ -451,7 +1557,8 @@ export const useStore = create<SystemState>()(
           clientName: proposal.clientName,
           title: 'Proposta Comercial Aceita',
           description: `O cliente aceitou eletronicamente os termos da proposta via link público.`,
-          type: 'proposal_accepted'
+          type: 'proposal_accepted',
+          organizationId: proposal.organizationId
         });
         
         // Check if contract already exists
@@ -460,6 +1567,7 @@ export const useStore = create<SystemState>()(
           // Auto-generate Contract
           const newContract: Contract = {
             id: `ct_${Date.now()}`,
+            organizationId: proposal.organizationId,
             clientId: proposal.clientId,
             clientName: proposal.clientName,
             companyName: proposal.companyName,
@@ -484,7 +1592,8 @@ export const useStore = create<SystemState>()(
             clientName: proposal.clientName,
             title: 'Contrato Gerado Automaticamente',
             description: `Contrato '${newContract.type}' criado sob status 'Aguardando Assinatura' na ZapSign.`,
-            type: 'contract_generated'
+            type: 'contract_generated',
+            organizationId: proposal.organizationId
           });
           
           // Check if Onboarding checklist already exists
@@ -492,6 +1601,7 @@ export const useStore = create<SystemState>()(
           if (!existsOnboarding) {
             const newOnboarding: Onboarding = {
               id: `o_${Date.now()}`,
+              organizationId: proposal.organizationId,
               clientId: proposal.clientId,
               clientName: proposal.clientName,
               companyName: proposal.companyName,
@@ -536,16 +1646,19 @@ export const useStore = create<SystemState>()(
           clientName: proposal.clientName,
           title: 'Proposta Recusada',
           description: `O cliente recusou os termos da proposta na página pública.`,
-          type: 'proposal_sent' // using sent as base log type
+          type: 'proposal_sent',
+          organizationId: proposal.organizationId
         });
       },
       
       addContract: (contractData) => {
+        const targetOrgId = contractData.organizationId || get().currentOrganizationId;
         const newContract: Contract = {
           ...contractData,
           id: `ct_${Date.now()}`,
+          organizationId: targetOrgId,
           createdAt: new Date().toISOString()
-        };
+        } as Contract;
         
         set((state) => ({
           contracts: [newContract, ...state.contracts]
@@ -556,7 +1669,8 @@ export const useStore = create<SystemState>()(
           clientName: newContract.clientName,
           title: 'Contrato Adicionado',
           description: `Contrato do tipo '${newContract.type}' criado manualmente.`,
-          type: 'contract_generated'
+          type: 'contract_generated',
+          organizationId: targetOrgId
         });
         
         return newContract;
@@ -582,7 +1696,8 @@ export const useStore = create<SystemState>()(
           clientName: contract.clientName,
           title: 'Contrato Assinado',
           description: `O contrato foi assinado por todas as partes via ZapSign.`,
-          type: 'contract_signed'
+          type: 'contract_signed',
+          organizationId: contract.organizationId
         });
         
         // Auto-generate Charge in Asaas
@@ -590,6 +1705,7 @@ export const useStore = create<SystemState>()(
         if (!existsCharge) {
           const newCharge: Charge = {
             id: `ch_${Date.now()}`,
+            organizationId: contract.organizationId,
             clientId: contract.clientId,
             clientName: contract.clientName,
             companyName: contract.companyName,
@@ -611,7 +1727,8 @@ export const useStore = create<SystemState>()(
             clientName: contract.clientName,
             title: 'Cobrança Asaas Gerada',
             description: `Faturamento recorrente de R$ ${newCharge.value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} gerado no Asaas.`,
-            type: 'charge_generated'
+            type: 'charge_generated',
+            organizationId: contract.organizationId
           });
           
           // Link charge url to Onboarding
@@ -625,11 +1742,13 @@ export const useStore = create<SystemState>()(
       },
       
       addCharge: (chargeData) => {
+        const targetOrgId = chargeData.organizationId || get().currentOrganizationId;
         const newCharge: Charge = {
           ...chargeData,
           id: `ch_${Date.now()}`,
+          organizationId: targetOrgId,
           createdAt: new Date().toISOString()
-        };
+        } as Charge;
         
         set((state) => ({
           charges: [newCharge, ...state.charges]
@@ -661,7 +1780,8 @@ export const useStore = create<SystemState>()(
           clientName: charge.clientName,
           title: 'Cobrança Confirmada (Asaas)',
           description: `Pagamento de R$ ${charge.value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} compensado com sucesso via Asaas.`,
-          type: 'charge_paid'
+          type: 'charge_paid',
+          organizationId: charge.organizationId
         });
         
         // Update Onboarding: set paymentConfirmed to completed
@@ -689,10 +1809,11 @@ export const useStore = create<SystemState>()(
             clientName: charge.clientName,
             title: 'Pasta Criada no Google Drive',
             description: `Automação gerou com sucesso a estrutura de pastas do cliente no Google Drive.`,
-            type: 'drive_created'
+            type: 'drive_created',
+            organizationId: charge.organizationId
           });
         }, 1000);
- 
+  
         // 2. Setup ClickUp
         setTimeout(() => {
           set((state) => ({
@@ -709,10 +1830,11 @@ export const useStore = create<SystemState>()(
             clientName: charge.clientName,
             title: 'Projeto Criado no ClickUp & WhatsApp',
             description: `Automação ClickUp criou a pasta de projetos. Grupo do WhatsApp operacional criado.`,
-            type: 'clickup_created'
+            type: 'clickup_created',
+            organizationId: charge.organizationId
           });
         }, 2000);
- 
+  
         // 3. Setup Tasks
         setTimeout(() => {
           // Generate onboarding tasks
@@ -724,9 +1846,10 @@ export const useStore = create<SystemState>()(
             dueDate: new Date(Date.now() + 3*24*60*60*1000).toISOString().split('T')[0],
             status: 'pending',
             priority: 'high',
-            description: 'Primeira conversa oficial pós-pagamento para definição de cronograma operacional.'
+            description: 'Primeira conversa oficial pós-pagamento para definição de cronograma operacional.',
+            organizationId: charge.organizationId
           });
- 
+  
           get().addTask({
             title: 'Planejar Calendário Editorial e Grade de Temas',
             clientId: charge.clientId,
@@ -735,7 +1858,8 @@ export const useStore = create<SystemState>()(
             dueDate: new Date(Date.now() + 5*24*60*60*1000).toISOString().split('T')[0],
             status: 'pending',
             priority: 'medium',
-            description: 'Roteirizar primeiros 6 posts com base na identidade extraída no onboarding.'
+            description: 'Roteirizar primeiros 6 posts com base na identidade extraída no onboarding.',
+            organizationId: charge.organizationId
           });
           
           set((state) => ({
@@ -746,14 +1870,14 @@ export const useStore = create<SystemState>()(
             activeSetupStep: 'tasks'
           }));
         }, 3000);
-
+  
         // 4. Completed step
         setTimeout(() => {
           set(() => ({
             activeSetupStep: 'completed'
           }));
         }, 4000);
-
+  
         // 5. Hide Modal after completion
         setTimeout(() => {
           set(() => ({
@@ -796,7 +1920,8 @@ export const useStore = create<SystemState>()(
             clientName: updatedOnb.clientName,
             title: 'Onboarding Concluído',
             description: `Onboarding operacional finalizado. O cliente foi movido para o status ATIVO na carteira.`,
-            type: 'onboarding_completed'
+            type: 'onboarding_completed',
+            organizationId: updatedOnb.organizationId
           });
         }
       },
@@ -811,11 +1936,13 @@ export const useStore = create<SystemState>()(
       },
       
       addPublication: (pubData) => {
+        const targetOrgId = pubData.organizationId || get().currentOrganizationId;
         const newPub: Publication = {
           ...pubData,
           id: `pub_${Date.now()}`,
+          organizationId: targetOrgId,
           createdAt: new Date().toISOString()
-        };
+        } as Publication;
         
         set((state) => ({
           publications: [newPub, ...state.publications]
@@ -826,7 +1953,8 @@ export const useStore = create<SystemState>()(
           clientName: newPub.clientName,
           title: 'Publicação Enviada para Aprovação',
           description: `Novo criativo e legenda enviados para a fila de aprovação de ${newPub.companyName}.`,
-          type: 'publication_sent'
+          type: 'publication_sent',
+          organizationId: targetOrgId
         });
         
         return newPub;
@@ -851,7 +1979,8 @@ export const useStore = create<SystemState>()(
             description: status === 'approved' 
               ? `A publicação agendada para ${pub.scheduledDate} foi aprovada sem ressalvas pelo cliente.`
               : `O cliente solicitou alterações: "${comments || ''}"`,
-            type
+            type,
+            organizationId: pub.organizationId
           });
           
           // Auto create clickup adjustment task if revision is requested
@@ -864,18 +1993,25 @@ export const useStore = create<SystemState>()(
               dueDate: new Date(Date.now() + 24*60*60*1000).toISOString().split('T')[0], // 1 day limit
               status: 'pending',
               priority: 'high',
-              description: `Solicitação de alteração do cliente: "${comments || ''}"`
+              description: `Solicitação de alteração do cliente: "${comments || ''}"`,
+              organizationId: pub.organizationId
             });
           }
         }
       },
       
       addTask: (taskData) => {
+        const targetOrgId = taskData.organizationId || get().currentOrganizationId;
+        if (!get().checkLimit('tasks', targetOrgId)) {
+          return null; // Limit exceeded
+        }
+
         const newTask: TeamTask = {
           ...taskData,
           id: `t_${Date.now()}`,
+          organizationId: targetOrgId,
           createdAt: new Date().toISOString()
-        };
+        } as TeamTask;
         
         set((state) => ({
           tasks: [newTask, ...state.tasks]
@@ -896,17 +2032,24 @@ export const useStore = create<SystemState>()(
             clientName: task.clientName,
             title: 'Tarefa Concluída',
             description: `Tarefa '${task.title}' concluída por ${task.responsibleUser}.`,
-            type: 'task_completed'
+            type: 'task_completed',
+            organizationId: task.organizationId
           });
         }
       },
       
       addHistoryEvent: (eventData) => {
+        const client = eventData.clientId ? get().clients.find(c => c.id === eventData.clientId) : null;
+        const finalClientName = client ? client.companyName : eventData.clientName;
+        const targetOrgId = eventData.organizationId || get().currentOrganizationId;
+
         const newEvent: HistoryEvent = {
           ...eventData,
+          clientName: finalClientName,
+          organizationId: targetOrgId,
           id: `h_${Date.now()}`,
           createdAt: new Date().toISOString()
-        };
+        } as HistoryEvent;
         
         set((state) => ({
           historyEvents: [newEvent, ...state.historyEvents]
@@ -914,14 +2057,9 @@ export const useStore = create<SystemState>()(
       },
       
       simulateCnpjSearch: (cnpj) => {
-        // Clean formatting to parse
         const cleanCnpj = cnpj.replace(/\D/g, '');
+        if (!cleanCnpj || cleanCnpj.length !== 14) return null;
         
-        if (!cleanCnpj || cleanCnpj.length !== 14) {
-          return null;
-        }
-        
-        // Mock DB for CNPJs
         const mockDb: Record<string, ReturnType<SystemState['simulateCnpjSearch']>> = {
           '12345678000190': {
             companyName: 'Power Energy Solar e Automação Ltda',
@@ -952,7 +2090,6 @@ export const useStore = create<SystemState>()(
           }
         };
         
-        // Fallback for any other valid length CNPJ to make it work dynamically
         return mockDb[cleanCnpj] || {
           companyName: `Empresa Simulada CNPJ ${cnpj}`,
           tradeName: `Nome Fantasia ${cnpj.slice(0, 5)}`,
@@ -966,6 +2103,8 @@ export const useStore = create<SystemState>()(
       
       resetState: () => {
         set(() => ({
+          organizations: initialOrganizations,
+          currentOrganizationId: 'org_hub_power',
           clients: initialClients,
           proposals: initialProposals,
           contracts: initialContracts,
@@ -976,12 +2115,92 @@ export const useStore = create<SystemState>()(
           historyEvents: initialHistory,
           teamMembers: initialTeamMembers,
           currentUser: initialTeamMembers[0],
+          integrations: initialIntegrations,
+          leads: initialLeads,
         }));
       }
     }),
     {
       name: 'hub-power-ponto-storage',
       storage: createJSONStorage(() => localStorage),
+        merge: (persistedState: unknown, currentState: SystemState): SystemState => {
+          if (!persistedState) return currentState;
+          const state = persistedState as Partial<SystemState>;
+          
+          const backfill = <T extends { id: string; organizationId?: string }>(list: T[] | undefined, initialList: T[]): T[] => {
+            if (!list) return initialList;
+            const migratedList = list.map(item => {
+              const initialItem = initialList.find(i => i.id === item.id);
+              return {
+                ...initialItem,
+                ...item,
+                organizationId: item.organizationId || initialItem?.organizationId || 'org_hub_power'
+              };
+            });
+            const migratedIds = new Set(migratedList.map(item => item.id));
+            const missingItems = initialList.filter(item => !migratedIds.has(item.id));
+            return [...migratedList, ...missingItems];
+          };
+
+          const backfillIntegrations = (list: TenantIntegration[] | undefined, initialList: TenantIntegration[]): TenantIntegration[] => {
+            if (!list) return initialList;
+            const migratedList = list.map(item => {
+              const initialItem = initialList.find(i => i.organizationId === item.organizationId);
+              return {
+                ...initialItem,
+                ...item,
+                organizationId: item.organizationId || initialItem?.organizationId || 'org_hub_power'
+              };
+            });
+            const migratedOrgs = new Set(migratedList.map(item => item.organizationId));
+            const missingItems = initialList.filter(item => !migratedOrgs.has(item.organizationId));
+            return [...migratedList, ...missingItems];
+          };
+
+          return {
+            ...currentState,
+            ...state,
+            organizations: backfill(state.organizations, currentState.organizations),
+            currentOrganizationId: state.currentOrganizationId || currentState.currentOrganizationId,
+            clients: backfill(state.clients, currentState.clients),
+            proposals: backfill(state.proposals, currentState.proposals),
+            contracts: backfill(state.contracts, currentState.contracts),
+            charges: backfill(state.charges, currentState.charges),
+            onboardings: backfill(state.onboardings, currentState.onboardings),
+            publications: backfill(state.publications, currentState.publications),
+            tasks: backfill(state.tasks, currentState.tasks),
+            historyEvents: backfill(state.historyEvents, currentState.historyEvents),
+            teamMembers: backfill(state.teamMembers, currentState.teamMembers),
+            currentUser: state.currentUser 
+              ? { ...currentState.currentUser, ...state.currentUser } 
+              : currentState.currentUser,
+            integrations: backfillIntegrations(state.integrations, currentState.integrations),
+            leads: backfill(state.leads, currentState.leads),
+          };
+        }
     }
   )
 );
+
+// SaaS Custom Selector Hook for dynamic tenant isolation
+export function useTenantStore() {
+  const store = useStore();
+  const currentOrgId = store.currentOrganizationId;
+  const currentOrg = store.organizations.find(o => o.id === currentOrgId) || store.organizations[0];
+  
+  return {
+    ...store,
+    currentOrganization: currentOrg,
+    currentIntegration: store.integrations.find(i => i.organizationId === currentOrgId) || store.integrations[0],
+    clients: store.clients.filter(c => c.organizationId === currentOrgId),
+    proposals: store.proposals.filter(p => p.organizationId === currentOrgId),
+    contracts: store.contracts.filter(c => c.organizationId === currentOrgId),
+    charges: store.charges.filter(c => c.organizationId === currentOrgId),
+    onboardings: store.onboardings.filter(o => o.organizationId === currentOrgId),
+    publications: store.publications.filter(p => p.organizationId === currentOrgId),
+    tasks: store.tasks.filter(t => t.organizationId === currentOrgId),
+    historyEvents: store.historyEvents.filter(h => h.organizationId === currentOrgId),
+    teamMembers: store.teamMembers.filter(m => m.organizationId === currentOrgId),
+    leads: store.leads.filter(l => l.organizationId === currentOrgId),
+  };
+}

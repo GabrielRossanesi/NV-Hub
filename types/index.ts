@@ -1,7 +1,29 @@
+export type PlanType = 'starter' | 'pro' | 'enterprise';
+export type UserRole = 'owner' | 'admin' | 'member' | 'viewer';
+
+export interface Organization {
+  id: string;
+  name: string;
+  cnpj: string;
+  planId: PlanType;
+  status: 'active' | 'suspended' | 'trial';
+  logoUrl?: string;
+  createdAt: string;
+}
+
+export interface PlanLimits {
+  clients: number;
+  users: number;
+  proposals: number;
+  tasks: number;
+  hasIntegrations: boolean;
+}
+
 export type ClientStatus = 'lead' | 'onboarding' | 'active' | 'inactive';
 
 export interface Client {
   id: string;
+  organizationId: string; // SaaS Tenant Isolation
   name: string;
   companyName: string;
   cnpj: string;
@@ -24,6 +46,7 @@ export interface ProposalItem {
 
 export interface Proposal {
   id: string;
+  organizationId: string; // SaaS Tenant Isolation
   clientId: string;
   clientName: string;
   companyName: string;
@@ -51,6 +74,7 @@ export type ContractStatus =
 
 export interface Contract {
   id: string;
+  organizationId: string; // SaaS Tenant Isolation
   clientId: string;
   clientName: string;
   companyName: string;
@@ -77,6 +101,7 @@ export type ChargeStatus =
 
 export interface Charge {
   id: string;
+  organizationId: string; // SaaS Tenant Isolation
   clientId: string;
   clientName: string;
   companyName: string;
@@ -94,6 +119,7 @@ export type OnboardingStepStatus = 'pending' | 'completed';
 
 export interface Onboarding {
   id: string;
+  organizationId: string; // SaaS Tenant Isolation
   clientId: string;
   clientName: string;
   companyName: string;
@@ -132,6 +158,7 @@ export type PublicationStatus =
 
 export interface Publication {
   id: string;
+  organizationId: string; // SaaS Tenant Isolation
   clientId: string;
   clientName: string;
   companyName: string;
@@ -150,6 +177,7 @@ export type TaskPriority = 'low' | 'medium' | 'high' | 'urgent';
 
 export interface TeamTask {
   id: string;
+  organizationId: string; // SaaS Tenant Isolation
   title: string;
   clientId: string;
   clientName: string;
@@ -163,6 +191,7 @@ export interface TeamTask {
 
 export interface HistoryEvent {
   id: string;
+  organizationId: string; // SaaS Tenant Isolation
   clientId?: string;
   clientName?: string;
   title: string;
@@ -191,7 +220,76 @@ export interface HistoryEvent {
 
 export interface TeamMember {
   id: string;
+  organizationId: string; // SaaS Tenant Isolation
   name: string;
-  role: string;
+  email?: string;
+  role: string; // business title
+  userRole: UserRole; // permission level
   avatarUrl?: string;
+  status?: 'active' | 'pending' | 'disabled';
+  lastAccess?: string;
 }
+
+export type IntegrationStatus = 'connected' | 'not_connected' | 'sandbox' | 'error' | 'pending';
+
+export interface TenantIntegration {
+  organizationId: string;
+  
+  // Asaas (Financeiro)
+  asaasToken: string;
+  asaasWebhook: string;
+  asaasStatus: IntegrationStatus;
+  
+  // ClickUp (Operacional)
+  clickupToken: string;
+  clickupWorkspace: string;
+  clickupStatus: IntegrationStatus;
+  
+  // Google Drive & Docs (Entrega)
+  googleKey: string;
+  googleFolder: string;
+  googleDriveStatus: IntegrationStatus;
+  
+  // ZapSign (Contratos)
+  zapsignKey: string;
+  zapsignStatus: IntegrationStatus;
+  
+  // WhatsApp (Atendimento)
+  whatsappToken: string;
+  whatsappStatus: IntegrationStatus;
+  
+  // Meta Ads (Leads)
+  metaAdsToken: string;
+  metaAdsStatus: IntegrationStatus;
+  
+  // Google Ads (Leads)
+  googleAdsToken: string;
+  googleAdsStatus: IntegrationStatus;
+}
+
+export type LeadStatus = 'new' | 'in_progress' | 'qualified' | 'meeting' | 'proposal_requested' | 'converted' | 'lost';
+export type LeadTemperature = 'cold' | 'warm' | 'hot';
+
+export interface Lead {
+  id: string;
+  organizationId: string; // SaaS Tenant Isolation
+  name: string;
+  companyName?: string; // Company name of the lead (if applicable)
+  email: string;
+  phone: string; // WhatsApp
+  origin: string; // ex: Google Search, Facebook Leads, Site Form
+  platform: 'google_ads' | 'meta_ads' | 'organic' | 'landing_page' | 'whatsapp';
+  campaign?: string;
+  adGroup?: string;
+  adName?: string;
+  formName?: string;
+  message?: string;
+  formResponses?: Record<string, string>; // respostas de perguntas adicionais
+  status: LeadStatus;
+  temperature: LeadTemperature;
+  responsibleUser: string;
+  createdAt: string;
+  lastInteraction: string;
+  notes?: string;
+}
+

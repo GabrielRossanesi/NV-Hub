@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import { Power, CheckCircle2, ShieldAlert, Calendar, CreditCard, Clock, Check, X } from 'lucide-react';
 import { useStore } from '../../../lib/store';
 import { useMounted } from '../../../hooks/useMounted';
+import { PLATFORM_NAME } from '../../../lib/config';
 import Button from '../../../components/ui/button';
 import Card, { CardContent, CardHeader, CardTitle, CardDescription } from '../../../components/ui/card';
 import Badge from '../../../components/ui/badge';
@@ -14,7 +15,7 @@ export default function PublicProposalPage() {
   const params = useParams();
   const mounted = useMounted();
   const proposalId = params.id as string;
-  const { proposals, acceptProposalFlow, declineProposalFlow } = useStore();
+  const { proposals, organizations, acceptProposalFlow, declineProposalFlow } = useStore();
 
   const [hasAgreed, setHasAgreed] = useState(false);
   const [actionMessage, setActionMessage] = useState('');
@@ -28,13 +29,14 @@ export default function PublicProposalPage() {
   }
 
   const proposal = proposals.find(p => p.id === proposalId);
+  const organization = proposal ? organizations.find(o => o.id === proposal.organizationId) : null;
 
-  if (!proposal) {
+  if (!proposal || !organization) {
     return (
       <div className="min-h-screen flex flex-col justify-center items-center px-4 bg-background">
         <ShieldAlert className="h-16 w-16 text-danger mb-4" />
         <h1 className="text-xl font-bold text-foreground">Proposta não encontrada</h1>
-        <p className="text-muted-foreground mt-1.5 text-sm">O link acessado é inválido ou a proposta foi excluída.</p>
+        <p className="text-muted-foreground mt-1.5 text-sm">O link acessado é inválido, a proposta foi excluída ou a organização correspondente não está ativa.</p>
       </div>
     );
   }
@@ -72,8 +74,8 @@ export default function PublicProposalPage() {
               <Power className="h-5.5 w-5.5" />
             </div>
             <div className="flex flex-col">
-              <span className="font-bold text-sm leading-tight tracking-tight">Hub Power</span>
-              <span className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">&amp; Ponto</span>
+              <span className="font-bold text-sm leading-tight tracking-tight">{PLATFORM_NAME}</span>
+              <span className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">Propostas</span>
             </div>
           </div>
           <div className="text-right">
@@ -102,15 +104,26 @@ export default function PublicProposalPage() {
             
             {/* Title Summary */}
             <Card>
-              <CardContent className="p-6 space-y-4">
-                <div className="space-y-1">
-                  <Badge variant="default">PROPOSTA COMERCIAL</Badge>
-                  <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground mt-2">
+              <CardContent className="p-6 space-y-5">
+                <div className="space-y-2">
+                  <div className="pb-1.5">
+                    <Badge variant="default" className="px-4 py-1 text-[10px] sm:text-[11px] tracking-wider uppercase font-bold">PROPOSTA COMERCIAL</Badge>
+                  </div>
+                  <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight text-foreground">
                     {proposal.description}
                   </h1>
                 </div>
-                <div className="flex flex-wrap gap-x-6 gap-y-2 text-xs text-muted-foreground border-t border-border/40 pt-4">
-                  <span>Destinatário: <strong className="text-foreground">{proposal.companyName} ({proposal.clientName})</strong></span>
+                <div className="flex flex-col sm:flex-row gap-4 justify-between text-xs text-muted-foreground border-t border-border/40 pt-4">
+                  <div>
+                    <span>Preparado por:</span>
+                    <strong className="text-foreground block mt-0.5 text-sm">{organization.name}</strong>
+                    <span className="text-[10px] font-mono block text-muted-foreground">CNPJ: {organization.cnpj}</span>
+                  </div>
+                  <div className="sm:text-right">
+                    <span>Destinatário:</span>
+                    <strong className="text-foreground block mt-0.5 text-sm">{proposal.companyName}</strong>
+                    <span className="text-[10px] block text-muted-foreground">A/C: {proposal.clientName}</span>
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -122,32 +135,58 @@ export default function PublicProposalPage() {
                 <CardDescription>Itens que compõem o escopo contratado.</CardDescription>
               </CardHeader>
               <CardContent className="p-0">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Descrição do Serviço</TableHead>
-                      <TableHead>Frequência</TableHead>
-                      <TableHead className="text-right">Valor</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {proposal.items.map((item) => (
-                      <TableRow key={item.id}>
-                        <TableCell className="font-medium text-foreground">{item.description}</TableCell>
-                        <TableCell className="text-xs text-muted-foreground">
-                          {item.isMonthly ? (
-                            <span className="text-primary font-semibold">Recorrente Mensal</span>
-                          ) : (
-                            'Setup / Taxa Única'
-                          )}
-                        </TableCell>
-                        <TableCell className="text-right font-semibold text-foreground">
-                          R$ {item.value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                        </TableCell>
+                {/* Desktop View */}
+                <div className="hidden md:block">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Descrição do Serviço</TableHead>
+                        <TableHead>Frequência</TableHead>
+                        <TableHead className="text-right">Valor</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {proposal.items.map((item) => (
+                        <TableRow key={item.id}>
+                          <TableCell className="font-medium text-foreground">{item.description}</TableCell>
+                          <TableCell className="text-xs text-muted-foreground">
+                            {item.isMonthly ? (
+                              <span className="text-primary font-semibold">Recorrente Mensal</span>
+                            ) : (
+                              'Setup / Taxa Única'
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right font-semibold text-foreground">
+                            R$ {item.value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+
+                {/* Mobile Card Layout Alternative */}
+                <div className="block md:hidden divide-y divide-border/40">
+                  {proposal.items.map((item) => (
+                    <div key={item.id} className="p-4 space-y-2">
+                      <div className="font-semibold text-sm text-foreground">{item.description}</div>
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="text-muted-foreground">Frequência:</span>
+                        {item.isMonthly ? (
+                          <span className="text-primary font-semibold">Recorrente Mensal</span>
+                        ) : (
+                          <span className="text-muted-foreground">Setup / Taxa Única</span>
+                        )}
+                      </div>
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="text-muted-foreground">Valor:</span>
+                        <span className="font-bold text-foreground">
+                          R$ {item.value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </CardContent>
             </Card>
 
@@ -248,7 +287,7 @@ export default function PublicProposalPage() {
                       <Button 
                         variant="ghost" 
                         onClick={handleDecline} 
-                        className="w-full text-xs font-semibold text-muted-foreground hover:text-danger hover:bg-danger/5"
+                        className="w-full h-10 text-xs sm:text-sm font-semibold text-muted-foreground hover:text-danger hover:bg-danger/5"
                       >
                         Recusar Proposta
                       </Button>
@@ -289,7 +328,7 @@ export default function PublicProposalPage() {
 
         {/* Footer legal disclaimer */}
         <footer className="text-center py-10 text-[10px] text-muted-foreground border-t border-border/40">
-          <p>© {new Date().getFullYear()} Hub Power &amp; Ponto. Todos os direitos reservados. Plataforma de Automação Comercial Operacional.</p>
+          <p>© {new Date().getFullYear()} {organization.name}. Todos os direitos reservados. Gerado via {PLATFORM_NAME}.</p>
         </footer>
 
       </div>

@@ -9,8 +9,8 @@ interface SparklineProps {
 export function Sparkline({ points, variant = 'primary', className = '' }: SparklineProps) {
   if (!points || points.length === 0) return null;
   
-  const width = 80;
-  const height = 24;
+  const width = 100;
+  const height = 32;
   
   const min = Math.min(...points);
   const max = Math.max(...points);
@@ -34,7 +34,7 @@ export function Sparkline({ points, variant = 'primary', className = '' }: Spark
 
   return (
     <svg 
-      className={`w-20 h-6 overflow-visible ${colorMap[variant]} ${className}`} 
+      className={`w-24 h-8 overflow-visible ${colorMap[variant]} ${className}`} 
       viewBox={`0 0 ${width} ${height}`}
     >
       <polyline

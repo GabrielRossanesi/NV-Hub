@@ -6,11 +6,12 @@ import { Power, Eye, EyeOff, ShieldCheck } from 'lucide-react';
 import Button from '../../components/ui/button';
 import Input from '../../components/ui/input';
 import Card from '../../components/ui/card';
+import { PLATFORM_NAME, PLATFORM_DESCRIPTION } from '../../lib/config';
 
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState('ana.silva@hubpowerponto.com.br');
-  const [password, setPassword] = useState('hub123456');
+  const [email, setEmail] = useState('ana.silva@powerponto.com.br');
+  const [password, setPassword] = useState('power123');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
@@ -40,9 +41,9 @@ export default function LoginPage() {
           <div className="h-12 w-12 rounded-xl bg-primary flex items-center justify-center text-primary-foreground shadow-lg mb-4">
             <Power className="h-6 w-6 animate-pulse" />
           </div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">Hub Power &amp; Ponto</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">{PLATFORM_NAME}</h1>
           <p className="text-xs text-muted-foreground mt-1 max-w-xs">
-            Gestão e Automação Operacional Comercial de Ponta a Ponta
+            {PLATFORM_DESCRIPTION}
           </p>
         </div>
 
@@ -65,7 +66,7 @@ export default function LoginPage() {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="seu.nome@hubpowerponto.com"
+              placeholder="seu.nome@powerponto.com"
               required
             />
 
@@ -98,9 +99,9 @@ export default function LoginPage() {
           <ShieldCheck className="h-5 w-5 text-primary shrink-0" />
           <div className="text-left text-[11px] text-muted-foreground">
             <span className="font-semibold block text-foreground">Credenciais Mockadas de Teste:</span>
-            Email: <code className="text-primary select-all">ana.silva@hubpowerponto.com.br</code>
+            Email: <code className="text-primary select-all">ana.silva@powerponto.com.br</code>
             <br />
-            Senha: <code className="text-primary select-all">hub123456</code>
+            Senha: <code className="text-primary select-all">power123</code>
           </div>
         </div>
       </div>

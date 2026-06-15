@@ -69,7 +69,7 @@ export function Modal({ isOpen, onClose, title, description, children, size = 'm
         </div>
 
         {/* Content */}
-        <div className="max-h-[70vh] overflow-y-auto pr-1">
+        <div className="max-h-[70vh] overflow-y-auto pr-1 modal-scrollbar">
           {children}
         </div>
       </div>

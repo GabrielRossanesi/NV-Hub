@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { Image as ImageIcon, Search, Filter, Plus, Check, AlertCircle } from 'lucide-react';
-import { useStore } from '../../lib/store';
+import { useTenantStore } from '../../lib/store';
 import { useMounted } from '../../hooks/useMounted';
 import { PageHeader as UIHeader } from '../../components/ui/page-header';
 import Button from '../../components/ui/button';
@@ -17,7 +17,7 @@ import DatePicker from '../../components/ui/date-picker';
 
 export default function PublicacoesPage() {
   const mounted = useMounted();
-  const { publications, clients, addPublication, updatePublicationStatus, teamMembers } = useStore();
+  const { publications, clients, addPublication, updatePublicationStatus, teamMembers } = useTenantStore();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -32,6 +32,9 @@ export default function PublicacoesPage() {
 
   // Comment state for revisions
   const [pubComments, setPubComments] = useState<Record<string, string>>({});
+
+  // Expanded caption state
+  const [expandedCaptions, setExpandedCaptions] = useState<Record<string, boolean>>({});
 
   if (!mounted) {
     return (
@@ -69,7 +72,7 @@ export default function PublicacoesPage() {
       caption: caption,
       scheduledDate: scheduledDate,
       status: 'pending_approval',
-      approvalLink: `https://hubpowerponto.com/aprovar/mock_${Date.now()}`,
+      approvalLink: `https://garoflow.com.br/aprovar/mock_${Date.now()}`,
       responsibleUser: responsavel
     });
 
@@ -149,8 +152,8 @@ export default function PublicacoesPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredPubs.map((pub) => (
-            <Card key={pub.id} className="overflow-hidden border border-border flex flex-col justify-between hover:shadow-md transition-shadow">
-              <div>
+            <Card key={pub.id} className="overflow-hidden border border-border flex flex-col justify-between hover:shadow-md transition-shadow h-full">
+              <div className="flex flex-col flex-1">
                 {/* Visual Image Preview */}
                 <div className="relative h-48 bg-muted overflow-hidden shrink-0 border-b border-border/60">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -165,10 +168,10 @@ export default function PublicacoesPage() {
                 </div>
 
                 {/* Details */}
-                <div className="p-4 space-y-4">
+                <div className="p-4 flex flex-col flex-1 space-y-4">
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <span className="font-bold text-sm text-foreground block truncate">{pub.companyName}</span>
+                      <span className="font-bold text-sm text-foreground block truncate" title={pub.companyName}>{pub.companyName}</span>
                       <span className="text-[10px] text-muted-foreground mt-0.5">Contato: {pub.clientName}</span>
                     </div>
                     <div className="text-right text-[10px] text-muted-foreground shrink-0">
@@ -177,15 +180,30 @@ export default function PublicacoesPage() {
                     </div>
                   </div>
 
-                  <div className="space-y-1.5">
+                  <div className="space-y-1.5 flex-1">
                     <span className="text-xs font-semibold text-foreground block">Legenda:</span>
-                    <div className="text-xs text-muted-foreground bg-muted/40 p-3 rounded-lg border border-border/40 whitespace-pre-wrap leading-relaxed max-h-24 overflow-y-auto">
-                      {pub.caption}
+                    <div className="text-xs text-muted-foreground bg-muted/40 p-3 rounded-lg border border-border/40 whitespace-pre-wrap leading-relaxed">
+                      {expandedCaptions[pub.id] 
+                        ? pub.caption 
+                        : (pub.caption.length > 120 ? `${pub.caption.slice(0, 120)}...` : pub.caption)
+                      }
+                      {pub.caption.length > 120 && (
+                        <button
+                          type="button"
+                          onClick={() => setExpandedCaptions({
+                            ...expandedCaptions,
+                            [pub.id]: !expandedCaptions[pub.id]
+                          })}
+                          className="text-primary hover:text-primary/80 font-bold block mt-1 focus:outline-none hover:underline cursor-pointer"
+                        >
+                          {expandedCaptions[pub.id] ? 'Ver menos' : 'Ver mais'}
+                        </button>
+                      )}
                     </div>
                   </div>
 
                   {pub.clientComments && (
-                    <div className="p-3 bg-danger/5 border border-danger/20 rounded-lg space-y-1 text-xs">
+                    <div className="p-3 bg-danger/5 border border-danger/20 rounded-lg space-y-1 text-xs mt-auto">
                       <span className="font-semibold text-danger block flex items-center gap-1">
                         <AlertCircle className="h-3.5 w-3.5" /> Ajustes Solicitados:
                       </span>

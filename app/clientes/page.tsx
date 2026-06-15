@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { Plus, Search, Filter, Eye, Building2, SearchCode } from 'lucide-react';
-import { useStore } from '../../lib/store';
+import { useTenantStore } from '../../lib/store';
 import { useMounted } from '../../hooks/useMounted';
 import { PageHeader as UIHeader } from '../../components/ui/page-header';
 import Button from '../../components/ui/button';
@@ -19,7 +19,7 @@ import { ClientStatus } from '../../types';
 
 export default function ClientesPage() {
   const mounted = useMounted();
-  const { clients, addClient, teamMembers, simulateCnpjSearch } = useStore();
+  const { clients, addClient, teamMembers, simulateCnpjSearch, checkLimit } = useTenantStore();
   
   // States
   const [searchTerm, setSearchTerm] = useState('');
@@ -97,7 +97,7 @@ export default function ClientesPage() {
       return;
     }
     
-    addClient({
+    const result = addClient({
       name: nome,
       companyName: empresa,
       cnpj: cnpj,
@@ -107,6 +107,11 @@ export default function ClientesPage() {
       commercialStatus: status,
       notes: observacoes
     });
+    
+    if (!result) {
+      alert('Limite do Plano Atingido! Faça o upgrade do seu plano nas Configurações para continuar cadastrando mais clientes.');
+      return;
+    }
     
     // Reset form & close
     setNome('');
@@ -295,6 +300,11 @@ export default function ClientesPage() {
         size="lg"
       >
         <form onSubmit={handleSaveClient} className="space-y-4 pt-2">
+          {!checkLimit('clients') && (
+            <div className="p-3 bg-danger/10 border border-danger/20 text-danger text-xs font-semibold rounded-lg">
+              Aviso: O limite de clientes do seu plano foi atingido. Faça o upgrade nas Configurações para continuar.
+            </div>
+          )}
           {/* CNPJ Field with autofill button */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
             <div className="md:col-span-2">

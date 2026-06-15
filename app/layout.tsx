@@ -13,9 +13,11 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+import { PLATFORM_NAME, PLATFORM_DESCRIPTION } from "../lib/config";
+
 export const metadata: Metadata = {
-  title: "Hub Power & Ponto",
-  description: "Plataforma de gestão e automação operacional",
+  title: PLATFORM_NAME,
+  description: PLATFORM_DESCRIPTION,
 };
 
 export default function RootLayout({

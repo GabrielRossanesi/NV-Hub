@@ -2,8 +2,8 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { Plus, Search, Filter, FileText, ExternalLink, Send, Trash2 } from 'lucide-react';
-import { useStore } from '../../lib/store';
+import { Plus, Search, Filter, FileText, ExternalLink, Send, Trash2, CheckCircle2 } from 'lucide-react';
+import { useTenantStore } from '../../lib/store';
 import { useMounted } from '../../hooks/useMounted';
 import { PageHeader as UIHeader } from '../../components/ui/page-header';
 import Button from '../../components/ui/button';
@@ -20,7 +20,7 @@ import { ProposalItem } from '../../types';
 
 export default function PropostasPage() {
   const mounted = useMounted();
-  const { proposals, clients, addProposal, updateProposalStatus } = useStore();
+  const { proposals, clients, addProposal, updateProposalStatus, checkLimit } = useTenantStore();
 
   // Search/Filters
   const [searchTerm, setSearchTerm] = useState('');
@@ -35,6 +35,10 @@ export default function PropostasPage() {
   const [validityDate, setValidityDate] = useState('');
   const [paymentTerms, setPaymentTerms] = useState('Boleto Asaas. Vencimento todo dia 10.');
   const [notes, setNotes] = useState('');
+
+  // Validation and Feedback States
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const [successToast, setSuccessToast] = useState('');
   
   // Dynamic Items list state
   const [items, setItems] = useState<Omit<ProposalItem, 'id'>[]>([
@@ -86,36 +90,80 @@ export default function PropostasPage() {
   const handleSaveProposal = (e: React.FormEvent) => {
     e.preventDefault();
     
-    const client = clients.find(c => c.id === selectedClientId);
-    if (!client || !description || !validityDate || items.length === 0) {
-      alert('Preencha os campos obrigatórios e adicione ao menos 1 item na proposta.');
+    const errors: Record<string, string> = {};
+    if (!selectedClientId) {
+      errors.selectedClientId = 'Selecione o cliente associado.';
+    }
+    if (!description.trim()) {
+      errors.description = 'O título/escopo do serviço é obrigatório.';
+    }
+    if (!validityDate) {
+      errors.validityDate = 'A data de validade é obrigatória.';
+    } else {
+      const selectedDate = new Date(validityDate);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      if (selectedDate < today) {
+        errors.validityDate = 'A data de validade não pode ser no passado.';
+      }
+    }
+    if (items.length === 0) {
+      errors.items = 'Adicione pelo menos 1 item na proposta.';
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
       return;
     }
 
-    addProposal({
-      clientId: client.id,
-      clientName: client.name,
-      companyName: client.companyName,
-      description: description,
-      items: items.map((it, idx) => ({ ...it, id: `pi_${Date.now()}_${idx}` })),
-      totalValue: totalValue,
-      monthlyValue: monthlyRecurring,
-      validityDate: validityDate,
-      paymentTerms: paymentTerms,
-      notes: notes
-    });
+    setFormErrors({});
 
-    // Reset fields
-    setSelectedClientId('');
-    setDescription('');
-    setValidityDate('');
-    setPaymentTerms('Boleto Asaas. Vencimento todo dia 10.');
-    setNotes('');
-    setItems([
-      { description: 'Setup inicial de Contas de Anúncio', value: 1000, isMonthly: false },
-      { description: 'Gestão de Tráfego Pago e Redes Sociais', value: 2500, isMonthly: true }
-    ]);
-    setIsModalOpen(false);
+    try {
+      const client = clients.find(c => c.id === selectedClientId);
+      if (!client) {
+        setFormErrors({ selectedClientId: 'Cliente não localizado.' });
+        return;
+      }
+
+      const result = addProposal({
+        clientId: client.id,
+        clientName: client.name,
+        companyName: client.companyName,
+        description: description,
+        items: items.map((it, idx) => ({ ...it, id: `pi_${Date.now()}_${idx}` })),
+        totalValue: totalValue,
+        monthlyValue: monthlyRecurring,
+        validityDate: validityDate,
+        paymentTerms: paymentTerms,
+        notes: notes
+      });
+
+      if (!result) {
+        alert('Limite do Plano Atingido! Faça o upgrade do seu plano nas Configurações para continuar criando mais propostas.');
+        return;
+      }
+
+      // Show success feedback
+      setSuccessToast(`Proposta para "${client.companyName}" gravada com sucesso!`);
+      setTimeout(() => {
+        setSuccessToast('');
+      }, 4000);
+
+      // Reset fields
+      setSelectedClientId('');
+      setDescription('');
+      setValidityDate('');
+      setPaymentTerms('Boleto Asaas. Vencimento todo dia 10.');
+      setNotes('');
+      setItems([
+        { description: 'Setup inicial de Contas de Anúncio', value: 1000, isMonthly: false },
+        { description: 'Gestão de Tráfego Pago e Redes Sociais', value: 2500, isMonthly: true }
+      ]);
+      setIsModalOpen(false);
+    } catch (err) {
+      console.error(err);
+      alert('Erro inesperado ao salvar a proposta. Tente novamente.');
+    }
   };
 
   // Filter proposals
@@ -144,6 +192,13 @@ export default function PropostasPage() {
           </Button>
         }
       />
+
+      {successToast && (
+        <div className="p-4 rounded-xl border bg-success/10 border-success/20 text-success text-sm font-semibold flex items-center gap-2.5 animate-in fade-in slide-in-from-top-4 duration-300">
+          <CheckCircle2 className="h-5 w-5 shrink-0" />
+          <span>{successToast}</span>
+        </div>
+      )}
 
       {/* Filters */}
       <div className="flex flex-col md:flex-row items-center gap-4 justify-between bg-card p-4 rounded-xl border border-border/80 shadow-sm">
@@ -223,7 +278,7 @@ export default function PropostasPage() {
                           <div className="text-xs text-muted-foreground">Contato: {prop.clientName}</div>
                         </TableCell>
                         <TableCell>
-                          <div className="text-foreground font-medium truncate max-w-xs">{prop.description}</div>
+                          <div className="text-foreground font-medium truncate max-w-xs" title={prop.description}>{prop.description}</div>
                           <div className="text-[10px] text-muted-foreground">Criação: {new Date(prop.createdAt).toLocaleDateString('pt-BR')}</div>
                         </TableCell>
                         <TableCell className="font-semibold text-foreground text-xs">
@@ -286,7 +341,7 @@ export default function PropostasPage() {
                     </div>
 
                     <div className="space-y-1">
-                      <span className="text-xs text-foreground font-medium block truncate max-w-xs">{prop.description}</span>
+                      <span className="text-xs text-foreground font-medium block truncate max-w-xs" title={prop.description}>{prop.description}</span>
                       <span className="text-[10px] text-muted-foreground block">Criação: {new Date(prop.createdAt).toLocaleDateString('pt-BR')}</span>
                     </div>
 
@@ -351,12 +406,18 @@ export default function PropostasPage() {
         size="lg"
       >
         <form onSubmit={handleSaveProposal} className="space-y-4 pt-2">
+          {!checkLimit('proposals') && (
+            <div className="p-3 bg-danger/10 border border-danger/20 text-danger text-xs font-semibold rounded-lg">
+              Aviso: O limite de propostas do seu plano foi atingido. Faça o upgrade nas Configurações para continuar.
+            </div>
+          )}
           <Select
             label="Selecione o Cliente Associado"
             placeholder="Escolha um cliente..."
             options={clientOptions}
             value={selectedClientId}
             onChange={(e) => setSelectedClientId(e.target.value)}
+            error={formErrors.selectedClientId}
             required
           />
 
@@ -366,6 +427,7 @@ export default function PropostasPage() {
             placeholder="Ex: Gestão de Mídias Sociais + Tráfego Pago Local"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
+            error={formErrors.description}
             required
           />
 
@@ -374,6 +436,8 @@ export default function PropostasPage() {
               label="Data de Validade da Proposta"
               value={validityDate}
               onChange={(e) => setValidityDate(e.target.value)}
+              placeholder="AAAA-MM-DD"
+              error={formErrors.validityDate}
               required
             />
             <Input
@@ -387,7 +451,10 @@ export default function PropostasPage() {
 
           {/* Proposal itemizer table panel */}
           <div className="space-y-3 p-4 bg-muted/30 border border-border rounded-xl">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-foreground">Itens da Proposta</h3>
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-foreground">Itens da Proposta</h3>
+              {formErrors.items && <span className="text-xs text-danger font-semibold">{formErrors.items}</span>}
+            </div>
             
             {/* Add Item form fields */}
             <div className="grid grid-cols-1 md:grid-cols-5 gap-2 items-end">

@@ -6,10 +6,10 @@ import Link from 'next/link';
 import { 
   Building2, Phone, Mail, User, ShieldAlert, ArrowLeft,
   FileSignature, CreditCard, UserPlus, Image as ImageIcon, CheckSquare, 
-  History, ExternalLink, Calendar, Plus, Check, AlertCircle, Save,
+  History, ExternalLink, Calendar, Plus, Check, AlertCircle, Save, Copy,
   ChevronDown, ChevronUp
 } from 'lucide-react';
-import { useStore } from '../../../lib/store';
+import { useTenantStore } from '../../../lib/store';
 import { useMounted } from '../../../hooks/useMounted';
 import type { TaskPriority } from '../../../types';
 import Button from '../../../components/ui/button';
@@ -35,8 +35,8 @@ export default function ClientProfilePage() {
     clients, proposals, contracts, charges, onboardings, 
     publications, tasks, historyEvents, signContractFlow, 
     confirmPaymentFlow, updateOnboardingStep, updateOnboardingLinks,
-    updatePublicationStatus, addTask, updateTaskStatus, teamMembers
-  } = useStore();
+    updatePublicationStatus, addTask, updateTaskStatus, teamMembers, checkLimit
+  } = useTenantStore();
 
   // Selected client
   const client = clients.find(c => c.id === clientId);
@@ -74,6 +74,19 @@ export default function ClientProfilePage() {
   const [isContractsExpanded, setIsContractsExpanded] = useState(true);
   const [isChargesExpanded, setIsChargesExpanded] = useState(true);
   const [isProposalsExpanded, setIsProposalsExpanded] = useState(true);
+
+  // Pix Copy State
+  const [copiedChargeId, setCopiedChargeId] = useState<string | null>(null);
+
+  const handleCopyPix = (chargeId: string, code: string) => {
+    if (typeof navigator !== 'undefined' && navigator.clipboard) {
+      navigator.clipboard.writeText(code);
+      setCopiedChargeId(chargeId);
+      setTimeout(() => {
+        setCopiedChargeId(null);
+      }, 2000);
+    }
+  };
 
   // Add Task states
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
@@ -140,7 +153,7 @@ export default function ClientProfilePage() {
     e.preventDefault();
     if (!taskTitle || !taskDueDate) return;
     
-    addTask({
+    const result = addTask({
       title: taskTitle,
       clientId: client.id,
       clientName: client.companyName,
@@ -150,6 +163,11 @@ export default function ClientProfilePage() {
       priority: taskPriority,
       description: taskDesc
     });
+
+    if (!result) {
+      alert('Limite do Plano Atingido! Faça o upgrade do seu plano nas Configurações para continuar criando mais tarefas.');
+      return;
+    }
 
     setTaskTitle('');
     setTaskDueDate('');
@@ -423,9 +441,28 @@ export default function ClientProfilePage() {
                         {/* Pix mockup simulator */}
                         {charge.status === 'pending' && (
                           <div className="space-y-3 pt-3 border-t border-border/40 mt-3">
-                            <div className="p-2.5 bg-muted/40 rounded-lg text-[10px] text-muted-foreground font-mono break-all border border-border select-all" title="Clique para copiar">
-                              pix-copy-paste-code-mock-hub-power-cobranca-{charge.id}-000000000000
+                            <div className="relative group">
+                              <div className="p-3 bg-muted/40 rounded-lg text-xs text-foreground font-mono break-all border border-border pr-10">
+                                00020101021226830014br.gov.bcb.pix2561api.asaas.com/v2/cob/v/powerponto-cobranca-{charge.id}
+                              </div>
+                              <button
+                                onClick={() => handleCopyPix(charge.id, `00020101021226830014br.gov.bcb.pix2561api.asaas.com/v2/cob/v/powerponto-cobranca-${charge.id}`)}
+                                className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-md bg-background/90 hover:bg-background border border-border text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                                title="Copiar código Pix"
+                                type="button"
+                              >
+                                {copiedChargeId === charge.id ? (
+                                  <Check className="h-3.5 w-3.5 text-success" />
+                                ) : (
+                                  <Copy className="h-3.5 w-3.5" />
+                                )}
+                              </button>
                             </div>
+                            {copiedChargeId === charge.id && (
+                              <div className="text-[10px] text-success font-semibold flex items-center gap-1">
+                                <Check className="h-3 w-3" /> Pix copiado para a área de transferência!
+                              </div>
+                            )}
                             
                             <div className="p-3 bg-warning/5 border border-warning/20 rounded-lg text-xs space-y-2">
                               <div className="text-warning font-semibold flex items-center gap-1.5">
@@ -506,7 +543,7 @@ export default function ClientProfilePage() {
                           {clientProposals.map((prop) => (
                             <TableRow key={prop.id}>
                               <TableCell>
-                                <span className="font-medium text-foreground block truncate max-w-xs">{prop.description}</span>
+                                <span className="font-medium text-foreground block truncate max-w-xs" title={prop.description}>{prop.description}</span>
                                 <span className="text-[10px] text-muted-foreground">Vencimento: {new Date(prop.validityDate).toLocaleDateString('pt-BR')}</span>
                               </TableCell>
                               <TableCell className="font-semibold text-foreground text-xs">
@@ -531,7 +568,7 @@ export default function ClientProfilePage() {
                       {clientProposals.map((prop) => (
                         <div key={prop.id} className="py-4 space-y-3 first:pt-0 last:pb-0">
                           <div className="flex items-center justify-between gap-2">
-                            <span className="font-semibold text-sm text-foreground block truncate max-w-[180px]">{prop.description}</span>
+                            <span className="font-semibold text-sm text-foreground block truncate max-w-[180px]" title={prop.description}>{prop.description}</span>
                             <StatusBadge type="proposal" status={prop.status} />
                           </div>
                           <div className="flex items-center justify-between text-xs text-muted-foreground">
@@ -1008,6 +1045,11 @@ export default function ClientProfilePage() {
         description="Associe uma nova tarefa para a equipe executar para este cliente."
       >
         <form onSubmit={handleCreateTask} className="space-y-4 pt-2">
+          {!checkLimit('tasks') && (
+            <div className="p-3 bg-danger/10 border border-danger/20 text-danger text-xs font-semibold rounded-lg">
+              Aviso: O limite de tarefas do seu plano foi atingido. Faça o upgrade nas Configurações para continuar.
+            </div>
+          )}
           <Input
             label="Título da Tarefa"
             type="text"

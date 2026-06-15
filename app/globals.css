@@ -21,8 +21,8 @@
   --muted: #f1f5f9; /* slate-100 */
   --muted-foreground: #64748b; /* slate-500 */
   
-  --border: #e2e8f0; /* slate-200 */
-  --input: #cbd5e1; /* slate-300 */
+  --border: #cbd5e1; /* slate-300 */
+  --input: #94a3b8; /* slate-400 */
   
   --success: #10b981; /* emerald-500 */
   --success-foreground: #ffffff;
@@ -128,4 +128,27 @@ body {
 }
 ::-webkit-scrollbar-thumb:hover {
   background: var(--input);
+}
+
+/* Custom scrollbar utility for modal */
+.modal-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.modal-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.modal-scrollbar::-webkit-scrollbar-thumb {
+  background-color: var(--border);
+  border-radius: 9999px;
+}
+.modal-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: var(--input);
+}
+
+.dark .modal-scrollbar::-webkit-scrollbar-thumb {
+  background-color: #374151; /* gray-700 */
+}
+.dark .modal-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: #4b5563; /* gray-600 */
 }

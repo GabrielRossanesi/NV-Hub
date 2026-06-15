@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { History, Search, Clock, FileText, FileCheck, CreditCard, FolderOpen, CheckCircle, Info } from 'lucide-react';
-import { useStore } from '../../lib/store';
+import { useTenantStore } from '../../lib/store';
 import { useMounted } from '../../hooks/useMounted';
 import { PageHeader as UIHeader } from '../../components/ui/page-header';
 import Card, { CardContent } from '../../components/ui/card';
@@ -11,7 +11,7 @@ import EmptyState from '../../components/ui/empty-state';
 
 export default function HistoricoPage() {
   const mounted = useMounted();
-  const { historyEvents, clients } = useStore();
+  const { historyEvents, clients } = useTenantStore();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [clientFilter, setClientFilter] = useState('all');

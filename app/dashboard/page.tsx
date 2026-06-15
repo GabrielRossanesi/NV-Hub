@@ -7,7 +7,7 @@ import {
   UserCheck, Image as ImageIcon, AlertTriangle, CheckSquare, 
   Clock, ArrowRight, UserPlus, AlertCircle
 } from 'lucide-react';
-import { useStore } from '../../lib/store';
+import { useTenantStore } from '../../lib/store';
 import { useMounted } from '../../hooks/useMounted';
 import PageHeader from '../../components/ui/page-header';
 import Sparkline from '../../components/ui/sparkline';
@@ -18,8 +18,9 @@ export default function DashboardPage() {
   const mounted = useMounted();
   const { 
     proposals, contracts, charges, onboardings, 
-    publications, tasks, historyEvents, clients 
-  } = useStore();
+    publications, tasks, historyEvents, clients,
+    currentOrganization
+  } = useTenantStore();
 
   if (!mounted) {
     return (
@@ -72,8 +73,8 @@ export default function DashboardPage() {
     <div className="space-y-8">
       {/* Page Header */}
       <PageHeader 
-        title="Dashboard Geral" 
-        description="Acompanhamento operacional em tempo real do fluxo de negócios."
+        title={`Dashboard: ${currentOrganization?.name || 'Organização não encontrada'}`} 
+        description={`Acompanhamento operacional em tempo real da organização. Plano: ${String(currentOrganization?.planId ?? 'sem plano').toUpperCase()}`}
       />
 
       {/* KPI Metrics Categories Grid */}

@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { Plus, Search, Check, AlertTriangle, CheckSquare, Clock, UserCheck } from 'lucide-react';
-import { useStore } from '../../lib/store';
+import { useTenantStore } from '../../lib/store';
 import { useMounted } from '../../hooks/useMounted';
 import { PageHeader as UIHeader } from '../../components/ui/page-header';
 import Button from '../../components/ui/button';
@@ -19,7 +19,7 @@ import { TaskPriority } from '../../types';
 
 export default function TarefasPage() {
   const mounted = useMounted();
-  const { tasks, clients, teamMembers, addTask, updateTaskStatus } = useStore();
+  const { tasks, clients, teamMembers, addTask, updateTaskStatus, checkLimit } = useTenantStore();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -64,7 +64,7 @@ export default function TarefasPage() {
       return;
     }
 
-    addTask({
+    const result = addTask({
       title: taskTitle,
       clientId: client.id,
       clientName: client.companyName,
@@ -74,6 +74,11 @@ export default function TarefasPage() {
       priority: taskPriority,
       description: taskDesc
     });
+
+    if (!result) {
+      alert('Limite do Plano Atingido! Faça o upgrade do seu plano nas Configurações para continuar criando mais tarefas.');
+      return;
+    }
 
     setTaskTitle('');
     setSelectedClientId('');
@@ -275,7 +280,7 @@ export default function TarefasPage() {
                         {filteredTasks.map((task) => (
                           <TableRow key={task.id}>
                             <TableCell>
-                              <div className="font-semibold text-foreground">{task.title}</div>
+                              <div className="font-semibold text-foreground" title={task.description || task.title}>{task.title}</div>
                               <div className="text-xs text-primary font-medium mt-0.5">{task.clientName}</div>
                             </TableCell>
                             <TableCell className="text-xs text-foreground font-medium">{task.responsibleUser}</TableCell>
@@ -369,6 +374,11 @@ export default function TarefasPage() {
         description="Preencha os dados da tarefa para a equipe."
       >
         <form onSubmit={handleCreateTask} className="space-y-4 pt-2">
+          {!checkLimit('tasks') && (
+            <div className="p-3 bg-danger/10 border border-danger/20 text-danger text-xs font-semibold rounded-lg">
+              Aviso: O limite de tarefas do seu plano foi atingido. Faça o upgrade nas Configurações para continuar.
+            </div>
+          )}
           <Input
             label="Título da Tarefa"
             type="text"

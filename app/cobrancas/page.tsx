@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { Search, Filter, CreditCard, ExternalLink, Check, AlertCircle } from 'lucide-react';
-import { useStore } from '../../lib/store';
+import { useTenantStore } from '../../lib/store';
 import { useMounted } from '../../hooks/useMounted';
 import { PageHeader as UIHeader } from '../../components/ui/page-header';
 import Button from '../../components/ui/button';
@@ -14,7 +14,7 @@ import { SetupProgressModal, SetupIndicator } from '../../components/ui/setup-pr
 
 export default function CobrancasPage() {
   const mounted = useMounted();
-  const { charges, confirmPaymentFlow } = useStore();
+  const { charges, confirmPaymentFlow } = useTenantStore();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');

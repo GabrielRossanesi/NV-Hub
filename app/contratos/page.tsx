@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { Search, Filter, Briefcase, FileSignature, Check, ExternalLink } from 'lucide-react';
-import { useStore } from '../../lib/store';
+import { useTenantStore } from '../../lib/store';
 import { useMounted } from '../../hooks/useMounted';
 import { PageHeader as UIHeader } from '../../components/ui/page-header';
 import Button from '../../components/ui/button';
@@ -13,7 +13,7 @@ import EmptyState from '../../components/ui/empty-state';
 
 export default function ContratosPage() {
   const mounted = useMounted();
-  const { contracts, signContractFlow } = useStore();
+  const { contracts, signContractFlow } = useTenantStore();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -119,7 +119,7 @@ export default function ContratosPage() {
                           <div className="text-xs text-muted-foreground">Contato: {c.clientName}</div>
                         </TableCell>
                         <TableCell>
-                          <div className="text-foreground font-medium truncate max-w-xs">{c.type}</div>
+                          <div className="text-foreground font-medium truncate max-w-xs" title={c.type}>{c.type}</div>
                           <div className="text-[10px] text-muted-foreground">Primeiro Venc: {new Date(c.firstPaymentDate).toLocaleDateString('pt-BR')}</div>
                         </TableCell>
                         <TableCell className="font-semibold text-foreground text-xs">
@@ -179,7 +179,7 @@ export default function ContratosPage() {
                     <div className="grid grid-cols-2 gap-2 text-xs py-2 px-2.5 border border-border/40 bg-muted/10 rounded-lg">
                       <div className="col-span-2">
                         <span className="text-[9px] text-muted-foreground uppercase tracking-wider block">Serviço</span>
-                        <span className="font-medium text-foreground truncate block">{c.type}</span>
+                        <span className="font-medium text-foreground truncate block" title={c.type}>{c.type}</span>
                       </div>
                       <div>
                         <span className="text-[9px] text-muted-foreground uppercase tracking-wider block">Mensalidade</span>
