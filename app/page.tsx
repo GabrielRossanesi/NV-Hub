@@ -79,7 +79,7 @@ export default function LandingPage() {
   const faqItems = [
     { 
       q: 'A NV Hub já possui integrações reais?', 
-      a: 'Sim, a plataforma possui conectores desenhados para as APIs oficiais do Asaas (pagamentos), ZapSign (assinaturas), Google Drive e ClickUp. A ativação destas integrações em ambiente de produção pode ser configurada conforme o plano selecionado, viabilidade técnica e etapa de implantação.' 
+      a: 'A plataforma é preparada para integração com conectores planejados para as APIs oficiais do Asaas, ZapSign, Google Drive e ClickUp. Nesta versão demonstrativa, as APIs operam em modo sandbox simulado; a conexão das chaves de produção de sua empresa é realizada através de nossa implantação assistida na fase de onboarding.' 
     },
     { 
       q: 'Posso usar a NV Hub sem integrações no início?', 
@@ -115,7 +115,7 @@ export default function LandingPage() {
     },
     { 
       q: 'A Central de Leads já conecta Meta Ads e Google Ads?', 
-      a: 'O MVP possui um ambiente Sandbox integrado para simular a captura e fluxo dessas origens sem expor credenciais reais. A conexão com as APIs oficiais do Meta e Google em produção é planejada de acordo com o plano contratado e a etapa de implantação técnica.' 
+      a: 'Esta demonstração possui um ambiente de sandbox integrado para simular a captura e fluxo dessas origens sem expor credenciais reais. A conexão com as APIs oficiais do Meta e Google em produção está no cronograma de conectores planejados e é feita por fase de implantação assistida.' 
     },
     { 
       q: 'Posso usar a Central de Leads manualmente no começo?', 
@@ -350,12 +350,12 @@ export default function LandingPage() {
             {/* Metric 1 */}
             <div className="pt-6 md:pt-0 md:px-6 space-y-2">
               <div className="text-3xl font-extrabold text-primary flex justify-center items-baseline gap-1">
-                Até 90%
-                <span className="text-xs text-muted-foreground font-normal">menos etapas</span>
+                Fluxo Único
+                <span className="text-xs text-muted-foreground font-normal">integrado</span>
               </div>
-              <h3 className="font-bold text-xs uppercase tracking-wider text-foreground">Processos Operacionais do Onboarding</h3>
+              <h3 className="font-bold text-xs uppercase tracking-wider text-foreground">De processos espalhados para uma esteira única</h3>
               <p className="text-xs text-muted-foreground max-w-xs mx-auto leading-relaxed">
-                Garante a transição do lead para cliente e a criação automática de workspaces no ClickUp e Drive de forma padronizada.
+                Garante a transição fluida do lead para cliente e a estruturação automática de workspaces no ClickUp e Drive de forma padronizada.
               </p>
             </div>
 
@@ -441,9 +441,9 @@ export default function LandingPage() {
       <section className="py-12 border-t border-border/40 bg-muted/20">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 text-center space-y-6">
           <div className="space-y-2">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Prepare sua operação para conectar canais de aquisição, atendimento, cobrança e entrega.</h3>
-            <p className="text-[10px] text-muted-foreground">
-              Integrações disponíveis conforme plano, viabilidade técnica e etapa de implantação.
+            <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Esteira preparada para integração com canais de aquisição, atendimento, cobrança e entrega.</h3>
+            <p className="text-[10px] text-muted-foreground font-semibold">
+              Ambiente demonstrativo operando em modo sandbox. Conectores planejados e ativados por fase de implantação assistida conforme o plano corporativo.
             </p>
           </div>
 
@@ -729,7 +729,7 @@ export default function LandingPage() {
               
               <ul className="space-y-3.5">
                 {[
-                  { title: 'Estrutura Multiempresa Avançada', desc: 'Isolamento estrito dos dados corporativos no Zustand e localStorage da aplicação.' },
+                  { title: 'Isolamento por Organização', desc: 'Arquitetura projetada para isolamento lógico de dados por organização. Esta versão é um ambiente sandbox demonstrativo; a versão de produção contará com autenticação real, banco de dados criptografado e isolamento multi-tenant completo no backend.' },
                   { title: 'Segregação Total por Organização', desc: 'Nenhum cliente, proposta ou histórico de tarefas corre risco de cruzar com outro tenant.' },
                   { title: 'Controle de Membros por Permissão', desc: 'Controle hierárquico robusto (owner, admin, member, viewer) customizável por usuário.' },
                   { title: 'Histórico Operacional Rastreável', desc: 'Eventos cronológicos de faturamento e criação auditáveis pelo operador.' },
@@ -814,7 +814,7 @@ export default function LandingPage() {
                   <li className="flex items-center gap-2 font-medium text-foreground"><CheckCircle2 className="h-4 w-4 text-primary shrink-0" /> Até 30 Clientes Cadastrados</li>
                   <li className="flex items-center gap-2 font-medium text-foreground"><CheckCircle2 className="h-4 w-4 text-primary shrink-0" /> Até 5 Membros na Equipe</li>
                   <li className="flex items-center gap-2 font-medium text-foreground"><CheckCircle2 className="h-4 w-4 text-primary shrink-0" /> Até 50 Propostas Emitidas</li>
-                  <li className="flex items-center gap-2 font-medium text-foreground"><CheckCircle2 className="h-4 w-4 text-primary shrink-0" /> Conectores ClickUp, Asaas &amp; Drive</li>
+                  <li className="flex items-center gap-2 font-medium text-foreground"><CheckCircle2 className="h-4 w-4 text-primary shrink-0" /> Acesso a conectores (sob implantação assistida)</li>
                 </ul>
               </div>
               <Button variant="primary" className="w-full mt-8 font-bold text-xs" onClick={() => handleOpenDemoModal('Pro')}>
@@ -836,7 +836,7 @@ export default function LandingPage() {
                 <hr className="border-border/40" />
                 <ul className="space-y-2.5 text-xs text-muted-foreground">
                   <li className="flex items-center gap-2 font-medium text-foreground"><CheckCircle2 className="h-4 w-4 text-primary shrink-0" /> Central de Leads e fluxos customizados</li>
-                  <li className="flex items-center gap-2 font-medium text-foreground"><CheckCircle2 className="h-4 w-4 text-primary shrink-0" /> Preparação para integrações avançadas</li>
+                  <li className="flex items-center gap-2 font-medium text-foreground"><CheckCircle2 className="h-4 w-4 text-primary shrink-0" /> Preparação para integrações e conectores planejados</li>
                   <li className="flex items-center gap-2 font-medium text-foreground"><CheckCircle2 className="h-4 w-4 text-primary shrink-0" /> Clientes e Membros Ilimitados</li>
                   <li className="flex items-center gap-2 font-medium text-foreground"><CheckCircle2 className="h-4 w-4 text-primary shrink-0" /> Propostas e Onboarding Ilimitados</li>
                   <li className="flex items-center gap-2 font-medium text-foreground"><CheckCircle2 className="h-4 w-4 text-primary shrink-0" /> SLA e Suporte VIP no Onboarding</li>
@@ -849,7 +849,7 @@ export default function LandingPage() {
           </div>
 
           <p className="text-center text-[10px] text-muted-foreground mt-8 max-w-xl mx-auto leading-normal">
-            * Os valores podem variar conforme implantação, integrações necessárias e nível de personalização do fluxo de trabalho da sua equipe.
+            * Mensalidades de referência para o licenciamento do software. Os serviços de setup de conectores adicionais e implantação assistida são orçados sob medida para a sua operação.
           </p>
         </div>
       </section>

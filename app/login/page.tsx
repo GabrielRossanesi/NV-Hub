@@ -58,8 +58,8 @@ export default function LoginPage() {
         <Card className="p-8 border border-border/40 shadow-2xl bg-card/60 backdrop-blur-md">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-1">
-              <h2 className="text-base font-semibold text-foreground">Área Restrita</h2>
-              <p className="text-xs text-muted-foreground">Use as credenciais abaixo para testar o MVP.</p>
+              <h2 className="text-base font-semibold text-foreground">Ambiente Demonstrativo</h2>
+              <p className="text-xs text-muted-foreground">Use as credenciais abaixo para acessar a demo da NV Hub.</p>
             </div>
 
             {error && (
@@ -105,7 +105,7 @@ export default function LoginPage() {
         <div className="p-4 bg-muted/30 border border-border/50 rounded-xl text-center flex items-center justify-center gap-3">
           <ShieldCheck className="h-5 w-5 text-primary shrink-0" />
           <div className="text-left text-[11px] text-muted-foreground">
-            <span className="font-semibold block text-foreground">Credenciais Mockadas de Teste:</span>
+            <span className="font-semibold block text-foreground">Credenciais de Acesso à Demo:</span>
             Email: <code className="text-primary select-all">ana.silva@powerponto.com.br</code>
             <br />
             Senha: <code className="text-primary select-all">power123</code>

@@ -5,31 +5,31 @@
   width="32"
   height="32"
 >
-  {/* The N Monogram */}
+  <!-- N shape: Left leg vertical, diagonal down-right, right leg vertical -->
   <path
-    d="M26 70 V30 L52 70 V30"
+    d="M25 70 V30 L47 70 V30"
     stroke="#d4b26f"
     strokeWidth="10"
     strokeLinecap="round"
     strokeLinejoin="round"
   />
-  {/* The V Monogram Extension */}
+  <!-- V shape: Left leg diagonal down-right, right leg diagonal up-right -->
   <path
-    d="M52 70 L74 30"
+    d="M51 30 L64 70 L77 30"
     stroke="#d4b26f"
     strokeWidth="10"
     strokeLinecap="round"
     strokeLinejoin="round"
   />
-  {/* Center Hub Node */}
+  <!-- Center Hub Node at the bottom of V (64, 70) -->
   <circle
-    cx="52"
+    cx="64"
     cy="70"
     r="7.5"
     fill="#ffffff"
   />
   <circle
-    cx="52"
+    cx="64"
     cy="70"
     r="3"
     fill="#d4b26f"

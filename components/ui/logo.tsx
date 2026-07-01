@@ -36,10 +36,10 @@ export function LogoIcon({ className = '', size = 'md' }: { className?: string; 
         </filter>
       </defs>
 
-      {/* The Monogram: Shared Diagonal N and V */}
-      {/* N shape: Left leg, diagonal to bottom-center, and right leg going straight up */}
+      {/* The Monogram: Distinct N and V Side-by-Side */}
+      {/* N shape: Left leg vertical, diagonal down-right, right leg vertical */}
       <path
-        d="M26 70 V30 L52 70 V30"
+        d="M25 70 V30 L47 70 V30"
         stroke="var(--primary)"
         strokeWidth="9"
         strokeLinecap="round"
@@ -47,9 +47,9 @@ export function LogoIcon({ className = '', size = 'md' }: { className?: string; 
         className="transition-all duration-300"
       />
 
-      {/* V right leg: Diagonal going up-right from the bottom-center intersection */}
+      {/* V shape: Left leg diagonal down-right, right leg diagonal up-right */}
       <path
-        d="M52 70 L74 30"
+        d="M51 30 L64 70 L77 30"
         stroke="var(--primary)"
         strokeWidth="9"
         strokeLinecap="round"
@@ -57,9 +57,9 @@ export function LogoIcon({ className = '', size = 'md' }: { className?: string; 
         className="transition-all duration-300"
       />
 
-      {/* Core Hub Node: A glowing circle at the intersection (52, 70) */}
+      {/* Core Hub Node: A glowing circle at the bottom of the V (64, 70) */}
       <circle
-        cx="52"
+        cx="64"
         cy="70"
         r="6.5"
         fill="#ffffff"
@@ -67,7 +67,7 @@ export function LogoIcon({ className = '', size = 'md' }: { className?: string; 
         filter="url(#hub-glow-new)"
       />
       <circle
-        cx="52"
+        cx="64"
         cy="70"
         r="2.5"
         fill="var(--primary)"

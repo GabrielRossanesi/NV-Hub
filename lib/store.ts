@@ -350,6 +350,61 @@ const initialLeads: Lead[] = [
     lastInteraction: '2026-06-08T09:00:00Z',
     notes: 'Perda registrada. Consideraram o preço inicial do setup muito alto.'
   },
+  {
+    id: 'l5',
+    organizationId: 'org_hub_power',
+    name: 'Sandra Helena',
+    companyName: 'SH Boutique',
+    email: 'sandra@shboutique.com.br',
+    phone: '(11) 95555-5555',
+    origin: 'Indicação',
+    platform: 'organic',
+    message: 'Interessada em marketing de influência e social media recorrente.',
+    status: 'meeting',
+    temperature: 'warm',
+    responsibleUser: 'Maria Souza',
+    createdAt: '2026-06-20T10:00:00Z',
+    lastInteraction: '2026-06-22T14:00:00Z',
+    notes: 'Reunião comercial de alinhamento de escopo agendada.'
+  },
+  {
+    id: 'l6',
+    organizationId: 'org_hub_power',
+    name: 'Júlio Braga',
+    companyName: 'Braga Advocacia',
+    email: 'julio@braga.adv.br',
+    phone: '(11) 94444-4444',
+    origin: 'Google Ads Pesquisa',
+    platform: 'google_ads',
+    campaign: 'Braga_Adv_SP',
+    adGroup: 'Institucional',
+    message: 'Solicitação de proposta para SEO técnico e posts informativos semanais.',
+    status: 'proposal_requested',
+    temperature: 'hot',
+    responsibleUser: 'Carlos Santos',
+    createdAt: '2026-06-25T11:00:00Z',
+    lastInteraction: '2026-06-26T15:00:00Z',
+    notes: 'Proposta comercial de marketing de conteúdo solicitada e em elaboração.'
+  },
+  {
+    id: 'l7',
+    organizationId: 'org_hub_power',
+    name: 'Carolina Lima',
+    companyName: 'Ponto de Encontro Café',
+    email: 'carolina@pontoencontro.com.br',
+    phone: '(21) 97777-6666',
+    origin: 'Instagram Lead Form',
+    platform: 'meta_ads',
+    campaign: 'Meta_Local_Focado',
+    adGroup: 'Cafeteria_Premium',
+    message: 'Queremos aumentar o fluxo físico de clientes através de anúncios geolocalizados.',
+    status: 'converted',
+    temperature: 'hot',
+    responsibleUser: 'Ana Silva',
+    createdAt: '2026-06-01T14:30:00Z',
+    lastInteraction: '2026-06-02T10:00:00Z',
+    notes: 'Lead convertido com sucesso em cliente e encaminhado para onboarding!'
+  },
 
   // Spark Agency Leads
   {
@@ -594,6 +649,19 @@ const initialClients: Client[] = [
     createdAt: '2026-06-05T09:15:00Z'
   },
   {
+    id: 'c4',
+    organizationId: 'org_hub_power',
+    name: 'Sandra Helena',
+    companyName: 'SH Boutique',
+    cnpj: '44.333.222/0001-11',
+    phone: '(11) 95555-5555',
+    email: 'sandra@shboutique.com.br',
+    responsibleUser: 'Maria Souza',
+    commercialStatus: 'inactive',
+    notes: 'Contrato temporariamente suspenso para readequação interna da boutique.',
+    createdAt: '2026-04-01T10:00:00Z'
+  },
+  {
     id: 'c_s1',
     organizationId: 'org_spark',
     name: 'Eduardo Rocha',
@@ -754,6 +822,24 @@ const initialProposals: Proposal[] = [
     paymentTerms: 'Cartão de crédito ou PIX Asaas recorrente',
     status: 'draft',
     createdAt: '2026-06-12T11:30:00Z'
+  },
+  {
+    id: 'p3',
+    organizationId: 'org_hub_power',
+    clientId: 'c1',
+    clientName: 'Roberto Souza',
+    companyName: 'Power Energy Ltda',
+    description: 'Gestão de Tráfego Pago e Redes Sociais',
+    items: [
+      { id: 'pi6', description: 'Gestão mensal de Tráfego Pago (Google/Meta)', value: 2700.0, isMonthly: true },
+      { id: 'pi7', description: 'Criação de Conteúdo e Copywriting para Redes Sociais', value: 1500.0, isMonthly: true }
+    ],
+    totalValue: 4200.0,
+    monthlyValue: 4200.0,
+    validityDate: '2026-06-10',
+    paymentTerms: 'Boleto bancário via Asaas recorrente.',
+    status: 'accepted',
+    createdAt: '2026-05-08T10:00:00Z'
   }
 ];
 
@@ -774,6 +860,23 @@ const initialContracts: Contract[] = [
     documentUrl: 'https://zapsign.com.br/sign/mock-ponto-de-encontro-cafe',
     version: 'v1.0',
     createdAt: '2026-06-02T09:00:00Z'
+  },
+  {
+    id: 'ct2',
+    organizationId: 'org_hub_power',
+    clientId: 'c1',
+    clientName: 'Roberto Souza',
+    companyName: 'Power Energy Ltda',
+    proposalId: 'p3',
+    type: 'Gestão de Tráfego Pago & Copywriting',
+    value: 4200.0,
+    monthlyValue: 4200.0,
+    startDate: '2026-05-10',
+    firstPaymentDate: '2026-06-10',
+    status: 'signed',
+    documentUrl: 'https://zapsign.com.br/sign/mock-power-energy',
+    version: 'v1.0',
+    createdAt: '2026-05-10T09:00:00Z'
   },
   {
     id: 'ct_s1',
@@ -811,18 +914,47 @@ const initialContracts: Contract[] = [
 
 const initialCharges: Charge[] = [
   {
-    id: 'ch1',
+    id: 'pay_asaas_sandbox_1',
     organizationId: 'org_hub_power',
     clientId: 'c2',
     clientName: 'Carolina Lima',
     companyName: 'Ponto de Encontro Café',
     contractId: 'ct1',
     value: 3500.0,
-    dueDate: '2026-06-15',
+    dueDate: '2026-07-15',
     paymentMethod: 'pix',
     paymentUrl: 'https://cobranca.asaas.com/mock-cobranca-ponto-cafe',
     status: 'pending',
     createdAt: '2026-06-02T09:30:00Z'
+  },
+  {
+    id: 'pay_asaas_sandbox_2',
+    organizationId: 'org_hub_power',
+    clientId: 'c1',
+    clientName: 'Roberto Souza',
+    companyName: 'Power Energy Ltda',
+    contractId: 'ct2',
+    value: 4200.0,
+    dueDate: '2026-06-10',
+    paymentMethod: 'pix',
+    paymentUrl: 'https://cobranca.asaas.com/mock-cobranca-power-energy',
+    status: 'paid',
+    paidAt: '2026-06-10T10:00:00Z',
+    createdAt: '2026-05-10T09:30:00Z'
+  },
+  {
+    id: 'pay_asaas_sandbox_3',
+    organizationId: 'org_hub_power',
+    clientId: 'c4',
+    clientName: 'Sandra Helena',
+    companyName: 'SH Boutique',
+    contractId: '',
+    value: 2500.0,
+    dueDate: '2026-06-15',
+    paymentMethod: 'boleto',
+    paymentUrl: 'https://cobranca.asaas.com/mock-cobranca-sh-boutique',
+    status: 'overdue',
+    createdAt: '2026-06-01T11:00:00Z'
   },
   {
     id: 'ch_s1',
@@ -864,15 +996,15 @@ const initialOnboardings: Onboarding[] = [
     startDate: '2026-06-02',
     responsibleUser: 'Ana Silva',
     steps: {
-      paymentConfirmed: 'pending',
-      driveCreated: 'pending',
+      paymentConfirmed: 'completed',
+      driveCreated: 'completed',
       clickupCreated: 'pending',
       tasksCreated: 'pending',
       onboardingMeeting: 'pending',
       completed: 'pending'
     },
     links: {
-      googleDrive: '',
+      googleDrive: 'https://drive.google.com/drive/folders/mock-ponto-de-encontro-cafe',
       clickup: '',
       whatsAppGroup: '',
       contract: 'https://zapsign.com.br/sign/mock-ponto-de-encontro-cafe',

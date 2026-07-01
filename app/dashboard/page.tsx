@@ -240,7 +240,7 @@ export default function DashboardPage() {
                         <UserPlus className="h-3.5 w-3.5 text-info shrink-0" />
                         <span className="truncate">Onboarding</span>
                       </div>
-                      <span className="text-[10px] text-muted-foreground block mt-0.5">Simulado</span>
+                      <span className="text-[10px] text-muted-foreground block mt-0.5">Em andamento</span>
                     </div>
                     <div className="flex items-center gap-3 shrink-0">
                       <Sparkline points={[2, 2, 3, 2, 3, 4, 3]} variant="info" />

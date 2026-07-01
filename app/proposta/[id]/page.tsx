@@ -2,10 +2,12 @@
 
 import React, { useState } from 'react';
 import { useParams } from 'next/navigation';
-import { Power, CheckCircle2, ShieldAlert, Calendar, CreditCard, Clock, Check, X } from 'lucide-react';
+import Link from 'next/link';
+import { CheckCircle2, ShieldAlert, Calendar, CreditCard, Clock, Check, X } from 'lucide-react';
 import { useStore } from '../../../lib/store';
 import { useMounted } from '../../../hooks/useMounted';
 import { PLATFORM_NAME } from '../../../lib/config';
+import { LogoHorizontal } from '../../../components/ui/logo';
 import Button from '../../../components/ui/button';
 import Card, { CardContent, CardHeader, CardTitle, CardDescription } from '../../../components/ui/card';
 import Badge from '../../../components/ui/badge';
@@ -84,15 +86,9 @@ export default function PublicProposalPage() {
         
         {/* Top Navbar Header */}
         <header className="flex items-center justify-between border-b border-border/60 pb-6">
-          <div className="flex items-center gap-2.5">
-            <div className="h-10 w-10 rounded-lg bg-primary flex items-center justify-center text-primary-foreground shadow-md">
-              <Power className="h-5.5 w-5.5" />
-            </div>
-            <div className="flex flex-col">
-              <span className="font-bold text-sm leading-tight tracking-tight">{PLATFORM_NAME}</span>
-              <span className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">Propostas</span>
-            </div>
-          </div>
+          <Link href="/" className="flex items-center">
+            <LogoHorizontal size="md" />
+          </Link>
           <div className="text-right">
             <span className="text-xs text-muted-foreground block font-mono">Cód: {proposal.id}</span>
             <span className="text-xs text-muted-foreground">Emissão: {new Date(proposal.createdAt).toLocaleDateString('pt-BR')}</span>
