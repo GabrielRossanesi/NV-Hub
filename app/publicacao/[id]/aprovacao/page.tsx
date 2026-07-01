@@ -15,7 +15,6 @@ import { useStore } from '../../../../lib/store';
 import { useMounted } from '../../../../hooks/useMounted';
 import { LogoHorizontal } from '../../../../components/ui/logo';
 import Card, { CardContent } from '../../../../components/ui/card';
-import Badge from '../../../../components/ui/badge';
 import Button from '../../../../components/ui/button';
 
 // Custom Brand Icons to avoid missing lucide-react exports
@@ -118,12 +117,18 @@ function ApprovalContent() {
   // Validation checks
   if (!publication) {
     return (
-      <div className="min-h-screen bg-slate-950 flex flex-col justify-center items-center px-4 text-center">
-        <ShieldAlert className="h-16 w-16 text-red-500 mb-4 animate-bounce" />
-        <h1 className="text-xl font-bold text-slate-100">Publicação não encontrada</h1>
-        <p className="text-slate-400 mt-2 text-sm max-w-xs">
-          O registro da publicação solicitada não existe ou foi removido.
-        </p>
+      <div className="min-h-screen bg-background flex flex-col justify-center items-center px-4 text-center">
+        <Card className="max-w-md w-full shadow-2xl border-border/40 bg-card">
+          <CardContent className="p-8 text-center space-y-4">
+            <div className="h-16 w-16 rounded-full bg-danger/10 border border-danger/20 flex items-center justify-center mx-auto">
+              <ShieldAlert className="h-8 w-8 text-danger" />
+            </div>
+            <h1 className="text-xl font-bold text-foreground">Publicação não encontrada</h1>
+            <p className="text-muted-foreground mt-2 text-sm leading-relaxed">
+              O registro da publicação solicitada não existe ou foi removido.
+            </p>
+          </CardContent>
+        </Card>
       </div>
     );
   }
@@ -131,12 +136,18 @@ function ApprovalContent() {
   // Token validation
   if (!token || publication.approvalToken !== token) {
     return (
-      <div className="min-h-screen bg-slate-950 flex flex-col justify-center items-center px-4 text-center">
-        <ShieldAlert className="h-16 w-16 text-yellow-500 mb-4" />
-        <h1 className="text-xl font-bold text-slate-100">Acesso negado</h1>
-        <p className="text-slate-400 mt-2 text-sm max-w-xs">
-          O token de aprovação fornecido é inválido ou ausente. Entre em contato com a agência responsável.
-        </p>
+      <div className="min-h-screen bg-background flex flex-col justify-center items-center px-4 text-center">
+        <Card className="max-w-md w-full shadow-2xl border-border/40 bg-card">
+          <CardContent className="p-8 text-center space-y-4">
+            <div className="h-16 w-16 rounded-full bg-danger/10 border border-danger/20 flex items-center justify-center mx-auto">
+              <ShieldAlert className="h-8 w-8 text-danger" />
+            </div>
+            <h1 className="text-xl font-bold text-foreground">Acesso negado</h1>
+            <p className="text-muted-foreground mt-2 text-sm leading-relaxed">
+              O token de aprovação fornecido é inválido ou ausente. Entre em contato com a agência responsável.
+            </p>
+          </CardContent>
+        </Card>
       </div>
     );
   }
@@ -172,75 +183,103 @@ function ApprovalContent() {
   const isLinkExpired = isExpired || (publication.approvalLinkExpiresAt && new Date(publication.approvalLinkExpiresAt) < new Date());
   const linkStatus = publication.approvalLinkStatus;
 
+  // Color coding class for the timer widget based on expiration state
+  const getTimerColorClass = () => {
+    if (!publication.approvalLinkExpiresAt) return 'text-primary bg-primary/5 border border-primary/20';
+    const expiresAt = new Date(publication.approvalLinkExpiresAt).getTime();
+    const now = new Date().getTime();
+    const diff = expiresAt - now;
+    const hours = diff / (1000 * 60 * 60);
+
+    if (hours < 1) {
+      return 'text-danger bg-danger/5 border border-danger/20';
+    } else if (hours < 6) {
+      return 'text-amber-500 bg-amber-500/5 border border-amber-500/20';
+    }
+    return 'text-primary bg-primary/5 border border-primary/20';
+  };
+
   // Render state overrides based on action success
   if (actionSuccess === 'approved' || linkStatus === 'approved') {
     return (
-      <div className="min-h-screen bg-slate-950 flex flex-col justify-center items-center px-4 text-center">
-        <div className="bg-slate-900 border border-slate-800 p-8 rounded-2xl max-w-md shadow-2xl space-y-4">
-          <CheckCircle2 className="h-16 w-16 text-emerald-500 mx-auto animate-pulse" />
-          <h1 className="text-2xl font-bold text-slate-100">Post Aprovado!</h1>
-          <p className="text-slate-400 text-sm leading-relaxed">
-            Agradecemos pelo seu retorno. A publicação de <strong>{publication.companyName}</strong> foi aprovada e enviada para a fila de agendamento.
-          </p>
-          <div className="text-[11px] text-slate-500 font-mono">
-            Registrado em: {publication.approvedAt ? new Date(publication.approvedAt).toLocaleString('pt-BR') : new Date().toLocaleString('pt-BR')}
-          </div>
-        </div>
+      <div className="min-h-screen bg-background flex flex-col justify-center items-center px-4 text-center">
+        <Card className="max-w-md w-full shadow-2xl border-border/40 bg-card">
+          <CardContent className="p-8 text-center space-y-4">
+            <div className="h-16 w-16 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center mx-auto">
+              <CheckCircle2 className="h-10 w-10 text-emerald-500 animate-pulse" />
+            </div>
+            <h1 className="text-2xl font-black text-foreground">Post Aprovado!</h1>
+            <p className="text-muted-foreground text-sm leading-relaxed">
+              Agradecemos pelo seu retorno. A publicação de <strong className="text-foreground">{publication.companyName}</strong> foi aprovada e enviada para a fila de agendamento.
+            </p>
+            <div className="text-[11px] text-muted-foreground/60 font-mono pt-3 border-t border-border/20 mt-2">
+              Registrado em: {publication.approvedAt ? new Date(publication.approvedAt).toLocaleString('pt-BR') : new Date().toLocaleString('pt-BR')}
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }
 
   if (actionSuccess === 'changes_requested' || linkStatus === 'changes_requested') {
     return (
-      <div className="min-h-screen bg-slate-950 flex flex-col justify-center items-center px-4 text-center">
-        <div className="bg-slate-900 border border-slate-800 p-8 rounded-2xl max-w-md shadow-2xl space-y-4">
-          <MessageSquare className="h-16 w-16 text-amber-500 mx-auto" />
-          <h1 className="text-2xl font-bold text-slate-100">Ajustes Solicitados</h1>
-          <p className="text-slate-400 text-sm leading-relaxed">
-            Recebemos o seu feedback sobre a arte/legenda. Nossa equipe de criação já foi notificada e criamos uma tarefa de ajuste imediato.
-          </p>
-          <div className="p-3 bg-slate-950 border border-slate-800 rounded-lg text-left text-xs text-slate-300 italic">
-            &quot;{publication.clientFeedback || feedback}&quot;
-          </div>
-          <div className="text-[11px] text-slate-500 font-mono">
-            Registrado em: {publication.changesRequestedAt ? new Date(publication.changesRequestedAt).toLocaleString('pt-BR') : new Date().toLocaleString('pt-BR')}
-          </div>
-        </div>
+      <div className="min-h-screen bg-background flex flex-col justify-center items-center px-4 text-center">
+        <Card className="max-w-md w-full shadow-2xl border-border/40 bg-card">
+          <CardContent className="p-8 text-center space-y-4">
+            <div className="h-16 w-16 rounded-full bg-amber-500/10 border border-amber-500/20 flex items-center justify-center mx-auto">
+              <MessageSquare className="h-8 w-8 text-amber-500" />
+            </div>
+            <h1 className="text-2xl font-black text-foreground">Ajustes Solicitados</h1>
+            <p className="text-muted-foreground text-sm leading-relaxed">
+              Recebemos o seu feedback sobre a arte/legenda. Nossa equipe de criação já foi notificada e uma tarefa de ajuste imediata foi iniciada.
+            </p>
+            <div className="p-3.5 bg-background border border-border/40 rounded-xl text-left text-xs text-foreground italic leading-relaxed">
+              &quot;{publication.clientFeedback || feedback}&quot;
+            </div>
+            <div className="text-[11px] text-muted-foreground/60 font-mono pt-3 border-t border-border/20 mt-2">
+              Registrado em: {publication.changesRequestedAt ? new Date(publication.changesRequestedAt).toLocaleString('pt-BR') : new Date().toLocaleString('pt-BR')}
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }
 
   if (isLinkExpired || linkStatus === 'expired') {
     return (
-      <div className="min-h-screen bg-slate-950 flex flex-col justify-center items-center px-4 text-center">
-        <div className="bg-slate-900 border border-slate-800 p-8 rounded-2xl max-w-md shadow-2xl space-y-4">
-          <Clock className="h-16 w-16 text-slate-500 mx-auto" />
-          <h1 className="text-2xl font-bold text-slate-100">Link Expirado</h1>
-          <p className="text-slate-400 text-sm leading-relaxed">
-            Este link temporário de 24 horas expirou. Para a sua segurança e controle de versões, o acesso foi bloqueado.
-          </p>
-          <p className="text-xs text-slate-500">
-            Solicite um novo link de aprovação para a equipe responsável pelo seu projeto.
-          </p>
-        </div>
+      <div className="min-h-screen bg-background flex flex-col justify-center items-center px-4 text-center">
+        <Card className="max-w-md w-full shadow-2xl border-border/40 bg-card">
+          <CardContent className="p-8 text-center space-y-4">
+            <div className="h-16 w-16 rounded-full bg-danger/10 border border-danger/20 flex items-center justify-center mx-auto">
+              <Clock className="h-8 w-8 text-danger" />
+            </div>
+            <h1 className="text-2xl font-black text-foreground">Link Expirado</h1>
+            <p className="text-muted-foreground text-sm leading-relaxed">
+              Este link temporário de 24 horas expirou. Para a sua segurança e controle de versões, o acesso foi bloqueado.
+            </p>
+            <p className="text-xs text-muted-foreground/75 bg-muted/20 p-3 rounded-lg border border-border/10">
+              Solicite um novo link de aprovação para a equipe responsável pelo seu projeto.
+            </p>
+          </CardContent>
+        </Card>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 py-8 px-4 sm:px-6 lg:px-8 flex flex-col justify-between">
-      <div className="max-w-5xl mx-auto w-full space-y-8">
+    <div className="min-h-screen bg-background text-foreground py-8 px-4 sm:px-6 lg:px-8 flex flex-col justify-between">
+      <div className="max-w-5xl mx-auto w-full space-y-8 animate-in fade-in duration-300">
         
         {/* Header */}
-        <header className="flex items-center justify-between border-b border-slate-900 pb-6">
+        <header className="flex items-center justify-between border-b border-border/60 pb-6">
           <LogoHorizontal size="md" />
-          <Badge variant="warning" className="bg-slate-900 border border-slate-800 text-slate-300">
-            Modo Sandbox
-          </Badge>
+          <span className="bg-primary/5 border border-primary/20 text-primary px-3 py-0.5 rounded-full text-[10px] font-semibold tracking-wide">
+            Ambiente demonstrativo
+          </span>
         </header>
 
         {errorMsg && (
-          <div className="p-4 bg-red-950/40 border border-red-900/60 rounded-xl flex items-center gap-3 text-red-300 text-sm">
+          <div className="p-4 bg-danger/10 border border-danger/20 rounded-xl flex items-center gap-3 text-danger text-sm">
             <AlertCircle className="h-5 w-5 shrink-0" />
             <span>{errorMsg}</span>
           </div>
@@ -250,83 +289,83 @@ function ApprovalContent() {
           
           {/* Creative image preview - span 6 */}
           <div className="lg:col-span-6 space-y-4">
-            <h2 className="text-sm font-bold uppercase tracking-wider text-slate-400">Pré-visualização do Post</h2>
-            <div className="border border-slate-800 bg-slate-900/50 rounded-2xl overflow-hidden shadow-2xl">
-              <div className="p-4 border-b border-slate-800/60 flex items-center justify-between">
+            <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Pré-visualização do Post</h2>
+            <Card className="overflow-hidden border-border/40 bg-card shadow-2xl">
+              <div className="p-4 border-b border-border/20 flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <div className="h-7 w-7 rounded-full bg-slate-800 flex items-center justify-center text-xs font-bold text-primary">
+                  <div className="h-7 w-7 rounded-full bg-muted flex items-center justify-center text-xs font-bold text-primary border border-border/20">
                     {publication.companyName.substring(0, 2).toUpperCase()}
                   </div>
                   <div>
-                    <span className="font-semibold text-xs text-slate-200 block">{publication.companyName}</span>
-                    <span className="text-[10px] text-slate-500 block">Agendado</span>
+                    <span className="font-semibold text-xs text-foreground block leading-tight">{publication.companyName}</span>
+                    <span className="text-[10px] text-muted-foreground block mt-0.5">Agendado</span>
                   </div>
                 </div>
-                <div className="flex items-center gap-1.5 bg-slate-950 border border-slate-800 px-2 py-0.5 rounded-full text-[10px] font-semibold text-slate-300 uppercase">
+                <div className="flex items-center gap-1.5 bg-background border border-border/40 px-2 py-0.5 rounded-full text-[10px] font-semibold text-foreground uppercase">
                   <PlatformIcon platform={publication.platform} />
                   <span>{publication.platform || 'Rede Social'}</span>
                 </div>
               </div>
               
               {/* Image box */}
-              <div className="aspect-square bg-slate-950 flex items-center justify-center overflow-hidden relative border-b border-slate-800/40">
+              <div className="aspect-square bg-background/50 flex items-center justify-center overflow-hidden relative border-b border-border/20">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img 
                   src={publication.imageUrl} 
-                  alt="Post preview" 
+                  alt="Post preview creative" 
                   className="object-cover w-full h-full"
                 />
               </div>
 
               {/* Feed simulation details */}
-              <div className="p-4 space-y-2 bg-slate-900/40">
-                <div className="text-xs text-slate-300 leading-relaxed break-words whitespace-pre-wrap">
-                  <span className="font-bold text-slate-200 mr-1.5">{publication.companyName.toLowerCase().replace(/\s+/g, '')}</span>
+              <div className="p-4 space-y-2 bg-muted/10">
+                <div className="text-xs text-muted-foreground leading-relaxed break-words whitespace-pre-wrap">
+                  <span className="font-bold text-foreground mr-1.5">{publication.companyName.toLowerCase().replace(/\s+/g, '')}</span>
                   {publication.caption}
                 </div>
               </div>
-            </div>
+            </Card>
           </div>
 
           {/* Details & Actions - span 6 */}
           <div className="lg:col-span-6 space-y-6">
             
-            <div className="space-y-1">
-              <h1 className="text-2xl font-black tracking-tight text-white">Aprovação de Publicação</h1>
-              <p className="text-sm text-slate-400">
+            <div className="space-y-1.5">
+              <h1 className="text-2xl font-black tracking-tight text-foreground">Aprovação de Publicação</h1>
+              <p className="text-sm text-muted-foreground">
                 Revise os detalhes operacionais e a arte da publicação agendada abaixo.
               </p>
             </div>
 
             {/* Info Card */}
-            <Card className="bg-slate-900/40 border-slate-800/80 shadow-lg">
+            <Card className="border-border/40 shadow-lg bg-card">
               <CardContent className="p-6 space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1">
-                    <span className="text-[10px] text-slate-500 uppercase font-bold tracking-wider block">Cliente</span>
-                    <span className="text-sm font-semibold text-white block leading-tight">{publication.companyName}</span>
+                    <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider block">Cliente</span>
+                    <span className="text-sm font-semibold text-foreground block leading-tight">{publication.companyName}</span>
                   </div>
                   <div className="space-y-1">
-                    <span className="text-[10px] text-slate-500 uppercase font-bold tracking-wider block">Data Programada</span>
-                    <span className="text-sm font-semibold text-white block leading-tight flex items-center gap-1.5">
+                    <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider block">Data Programada</span>
+                    <span className="text-sm font-semibold text-foreground block leading-tight flex items-center gap-1.5">
                       <Calendar className="h-4 w-4 text-primary shrink-0" />
                       {new Date(publication.scheduledDate).toLocaleDateString('pt-BR')}
                     </span>
                   </div>
                 </div>
 
-                <div className="border-t border-slate-800 pt-4 flex items-center justify-between">
+                <div className="border-t border-border/20 pt-4 flex items-center justify-between">
                   <div className="space-y-0.5">
-                    <span className="text-[10px] text-slate-500 uppercase font-bold tracking-wider block">Responsável</span>
-                    <span className="text-xs text-slate-300 block">{publication.responsibleUser}</span>
+                    <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider block">Responsável</span>
+                    <span className="text-xs text-foreground block">{publication.responsibleUser}</span>
                   </div>
                   
                   {/* Countdown widget */}
-                  <div className="bg-red-950/20 border border-red-900/40 rounded-xl px-3 py-1.5 flex items-center gap-2">
-                    <Clock className="h-4 w-4 text-red-500 animate-pulse shrink-0" />
+                  <div className={`rounded-xl px-3 py-1.5 flex items-center gap-2 border ${getTimerColorClass()}`}>
+                    <Clock className="h-4 w-4 animate-pulse shrink-0" />
                     <div>
-                      <span className="text-[8px] uppercase font-bold text-red-400 block tracking-widest leading-none">Expira em</span>
-                      <span className="text-xs font-mono font-bold text-red-300 block leading-tight mt-0.5">{timeLeft}</span>
+                      <span className="text-[8px] uppercase font-bold block tracking-widest leading-none opacity-85">Expira em</span>
+                      <span className="text-xs font-mono font-bold block leading-tight mt-0.5">{timeLeft}</span>
                     </div>
                   </div>
                 </div>
@@ -338,22 +377,26 @@ function ApprovalContent() {
               <div className="space-y-3">
                 <Button 
                   onClick={handleApprove}
-                  className="w-full justify-center bg-primary hover:bg-primary-hover text-white font-bold py-3.5 text-sm rounded-xl shadow-xl shadow-primary/20 transition-all duration-300"
+                  variant="primary"
+                  size="lg"
+                  className="w-full justify-center text-sm font-bold shadow-lg shadow-primary/10"
                 >
                   <CheckCircle2 className="mr-2 h-4 w-4" /> Aprovar Publicação
                 </Button>
                 
                 <Button 
                   onClick={() => setShowFeedbackForm(true)}
-                  className="w-full justify-center bg-slate-900 hover:bg-slate-800 text-amber-500 border border-amber-950/40 font-bold py-3.5 text-sm rounded-xl transition-all duration-300"
+                  variant="outline"
+                  size="lg"
+                  className="w-full justify-center text-sm font-bold hover:border-amber-500/50 hover:text-amber-500 transition-colors"
                 >
                   <MessageSquare className="mr-2 h-4 w-4" /> Solicitar Ajustes
                 </Button>
               </div>
             ) : (
-              <form onSubmit={handleRequestChanges} className="space-y-4 bg-slate-900/60 border border-slate-800/80 p-5 rounded-2xl animate-in slide-in-from-bottom-2 duration-300">
+              <form onSubmit={handleRequestChanges} className="space-y-4 bg-card border border-border/40 p-5 rounded-2xl animate-in slide-in-from-bottom-2 duration-300">
                 <div className="space-y-2">
-                  <label htmlFor="feedback" className="text-xs font-bold text-amber-400 uppercase tracking-wider block">
+                  <label htmlFor="feedback" className="text-xs font-bold text-amber-500 uppercase tracking-wider block">
                     Quais alterações são necessárias?
                   </label>
                   <textarea
@@ -361,7 +404,7 @@ function ApprovalContent() {
                     value={feedback}
                     onChange={(e) => setFeedback(e.target.value)}
                     placeholder="Descreva aqui o que deve ser ajustado (ex: trocar foto, corrigir erro de digitação na legenda, mudar a data)..."
-                    className="w-full min-h-[120px] bg-slate-950 border border-slate-800 rounded-xl p-3.5 text-sm text-slate-100 focus:outline-none focus:border-amber-500/60 placeholder:text-slate-600 transition-colors"
+                    className="w-full min-h-[120px] bg-background border border-border/60 rounded-xl p-3.5 text-sm text-foreground focus:outline-none focus:border-primary placeholder:text-muted-foreground/60 transition-colors focus:ring-1 focus:ring-primary/30"
                     required
                   />
                 </div>
@@ -369,14 +412,16 @@ function ApprovalContent() {
                 <div className="flex gap-3">
                   <Button 
                     type="submit"
-                    className="flex-1 justify-center bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs py-2.5 rounded-lg transition-all duration-300"
+                    variant="primary"
+                    className="flex-1 justify-center text-xs font-bold py-2.5"
                   >
                     Enviar Solicitação
                   </Button>
                   <Button 
                     type="button"
                     onClick={() => setShowFeedbackForm(false)}
-                    className="flex-1 justify-center bg-slate-950 hover:bg-slate-900 border border-slate-800 text-slate-400 font-bold text-xs py-2.5 rounded-lg transition-all duration-300"
+                    variant="outline"
+                    className="flex-1 justify-center text-xs font-bold py-2.5"
                   >
                     Cancelar
                   </Button>
@@ -384,8 +429,8 @@ function ApprovalContent() {
               </form>
             )}
 
-            <div className="p-4 bg-slate-900/20 border border-slate-800/60 rounded-xl text-xs text-slate-500 leading-relaxed text-center">
-              Esta é uma página de homologação segura do NV Hub. As alterações salvas serão aplicadas no painel operacional em modo Sandbox demonstrativo.
+            <div className="p-4 bg-muted/10 border border-border/30 rounded-xl text-xs text-muted-foreground leading-relaxed text-center">
+              Ambiente demonstrativo da NV Hub. As ações realizadas nesta página atualizam o painel operacional em modo sandbox.
             </div>
 
           </div>
@@ -395,8 +440,8 @@ function ApprovalContent() {
       </div>
 
       {/* Footer */}
-      <footer className="max-w-5xl mx-auto w-full text-center border-t border-slate-900 pt-6 mt-8">
-        <p className="text-[10px] text-slate-600">
+      <footer className="max-w-5xl mx-auto w-full text-center border-t border-border/20 pt-6 mt-8">
+        <p className="text-[10px] text-muted-foreground/60">
           &copy; {new Date().getFullYear()} NV Hub. Todos os direitos reservados.
         </p>
       </footer>
@@ -407,7 +452,7 @@ function ApprovalContent() {
 export default function PublicationApprovalPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen bg-slate-950 flex flex-col justify-center items-center text-slate-400 font-medium">
+      <div className="min-h-screen bg-background flex flex-col justify-center items-center text-muted-foreground font-medium">
         <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full mb-3" />
         Carregando painel de aprovação...
       </div>
