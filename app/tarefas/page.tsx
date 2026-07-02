@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Plus, Search, Check, AlertTriangle, CheckSquare, Clock, UserCheck } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Plus, Search, Check, AlertTriangle, CheckSquare, Clock, UserCheck, LayoutList, Calendar } from 'lucide-react';
 import { useTenantStore } from '../../lib/store';
+import TaskCalendar from '../../components/ui/task-calendar';
 import { useMounted } from '../../hooks/useMounted';
 import { PageHeader as UIHeader } from '../../components/ui/page-header';
 import Button from '../../components/ui/button';
@@ -26,6 +27,26 @@ export default function TarefasPage() {
   const [respFilter, setRespFilter] = useState<string>('all');
 
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list');
+
+  // Load view preference on mount
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('nv_hub_tasks_view');
+      if (saved === 'list' || saved === 'calendar') {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setViewMode(saved);
+      }
+    }
+  }, []);
+
+  const handleSetViewMode = (mode: 'list' | 'calendar') => {
+    setViewMode(mode);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('nv_hub_tasks_view', mode);
+    }
+  };
 
   // Form States
   const [taskTitle, setTaskTitle] = useState('');
@@ -224,8 +245,8 @@ export default function TarefasPage() {
               />
             </div>
 
-            {/* Dropdown Filters */}
-            <div className="flex items-center gap-2 w-full md:w-auto">
+            {/* Dropdown Filters & View Toggle */}
+            <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
               <Select
                 options={[
                   { value: 'all', label: 'Todos Responsáveis' },
@@ -246,122 +267,159 @@ export default function TarefasPage() {
                 onChange={(e) => setStatusFilter(e.target.value)}
                 className="h-9 text-xs py-1"
               />
+
+              {/* View Toggle Segmented Control */}
+              <div className="flex items-center bg-muted/40 p-1 rounded-lg border border-border/80 h-9 shrink-0 ml-auto md:ml-0">
+                <button
+                  type="button"
+                  onClick={() => handleSetViewMode('list')}
+                  className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-semibold transition-all h-7 cursor-pointer select-none ${
+                    viewMode === 'list'
+                      ? 'bg-card text-foreground shadow-sm border border-border/40'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                  title="Visualização em Lista"
+                >
+                  <LayoutList className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">Lista</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleSetViewMode('calendar')}
+                  className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-semibold transition-all h-7 cursor-pointer select-none ${
+                    viewMode === 'calendar'
+                      ? 'bg-card text-foreground shadow-sm border border-border/40'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                  title="Visualização em Calendário"
+                >
+                  <Calendar className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">Calendário</span>
+                </button>
+              </div>
             </div>
           </div>
 
-          {/* Tasks List */}
-          <Card>
-            <CardContent className="p-0">
-              {filteredTasks.length === 0 ? (
-                <div className="p-12">
-                  <EmptyState 
-                    title="Nenhuma tarefa localizada" 
-                    description="Não existem tarefas correspondentes à busca."
-                    actionLabel="Criar Tarefa"
-                    onAction={() => setIsModalOpen(true)}
-                  />
-                </div>
-              ) : (
-                <>
-                  {/* Desktop Table View */}
-                  <div className="hidden md:block">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Título da Tarefa</TableHead>
-                          <TableHead>Responsável</TableHead>
-                          <TableHead>Prazo</TableHead>
-                          <TableHead>Prioridade</TableHead>
-                          <TableHead>Status</TableHead>
-                          <TableHead className="text-right">Ação</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {filteredTasks.map((task) => (
-                          <TableRow key={task.id}>
-                            <TableCell>
-                              <div className="font-semibold text-foreground" title={task.description || task.title}>{task.title}</div>
-                              <div className="text-xs text-primary font-medium mt-0.5">{task.clientName}</div>
-                            </TableCell>
-                            <TableCell className="text-xs text-foreground font-medium">{task.responsibleUser}</TableCell>
-                            <TableCell className="text-xs text-muted-foreground flex items-center gap-1 py-4.5">
-                              <Clock className="h-3.5 w-3.5" /> {new Date(task.dueDate).toLocaleDateString('pt-BR')}
-                            </TableCell>
-                            <TableCell><StatusBadge type="priority" status={task.priority} /></TableCell>
-                            <TableCell><StatusBadge type="task" status={task.status} /></TableCell>
-                            <TableCell className="text-right">
-                              {task.status !== 'completed' ? (
-                                <Button 
-                                  variant="outline" 
-                                  size="sm" 
-                                  onClick={() => updateTaskStatus(task.id, 'completed')}
-                                  className="h-8 text-xs gap-1 border-success/30 hover:bg-success/5 text-success-foreground"
-                                >
-                                  <Check className="h-3.5 w-3.5 text-success" /> Concluir
-                                </Button>
-                              ) : (
-                                <span className="text-xs font-semibold text-success flex items-center gap-1 justify-end">
-                                  <Check className="h-3.5 w-3.5" /> Concluída
-                                </span>
-                              )}
-                            </TableCell>
+          {/* Tasks List or Calendar */}
+          {viewMode === 'calendar' ? (
+            <TaskCalendar 
+              tasks={filteredTasks} 
+              updateTaskStatus={updateTaskStatus} 
+            />
+          ) : (
+            <Card>
+              <CardContent className="p-0">
+                {filteredTasks.length === 0 ? (
+                  <div className="p-12">
+                    <EmptyState 
+                      title="Nenhuma tarefa localizada" 
+                      description="Não existem tarefas correspondentes à busca."
+                      actionLabel="Criar Tarefa"
+                      onAction={() => setIsModalOpen(true)}
+                    />
+                  </div>
+                ) : (
+                  <>
+                    {/* Desktop Table View */}
+                    <div className="hidden md:block">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Título da Tarefa</TableHead>
+                            <TableHead>Responsável</TableHead>
+                            <TableHead>Prazo</TableHead>
+                            <TableHead>Prioridade</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead className="text-right">Ação</TableHead>
                           </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
+                        </TableHeader>
+                        <TableBody>
+                          {filteredTasks.map((task) => (
+                            <TableRow key={task.id}>
+                              <TableCell>
+                                <div className="font-semibold text-foreground" title={task.description || task.title}>{task.title}</div>
+                                <div className="text-xs text-primary font-medium mt-0.5">{task.clientName}</div>
+                              </TableCell>
+                              <TableCell className="text-xs text-foreground font-medium">{task.responsibleUser}</TableCell>
+                              <TableCell className="text-xs text-muted-foreground flex items-center gap-1 py-4.5">
+                                <Clock className="h-3.5 w-3.5" /> {new Date(task.dueDate).toLocaleDateString('pt-BR')}
+                              </TableCell>
+                              <TableCell><StatusBadge type="priority" status={task.priority} /></TableCell>
+                              <TableCell><StatusBadge type="task" status={task.status} /></TableCell>
+                              <TableCell className="text-right">
+                                {task.status !== 'completed' ? (
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm" 
+                                    onClick={() => updateTaskStatus(task.id, 'completed')}
+                                    className="h-8 text-xs gap-1 border-success/30 hover:bg-success/5 text-success-foreground"
+                                  >
+                                    <Check className="h-3.5 w-3.5 text-success" /> Concluir
+                                  </Button>
+                                ) : (
+                                  <span className="text-xs font-semibold text-success flex items-center gap-1 justify-end">
+                                    <Check className="h-3.5 w-3.5" /> Concluída
+                                  </span>
+                                )}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
 
-                  {/* Mobile Card List View */}
-                  <div className="block md:hidden divide-y divide-border/40">
-                    {filteredTasks.map((task) => (
-                      <div key={task.id} className="p-4 space-y-3">
-                        <div className="flex items-start justify-between gap-2">
-                          <div>
-                            <div className="font-semibold text-foreground text-sm leading-snug">{task.title}</div>
-                            <div className="text-[11px] text-primary font-medium mt-0.5">{task.clientName}</div>
-                          </div>
-                          <div className="flex flex-col items-end gap-1 shrink-0">
-                            <StatusBadge type="task" status={task.status} />
-                            <StatusBadge type="priority" status={task.priority} />
-                          </div>
-                        </div>
-
-                        {task.description && (
-                          <p className="text-xs text-muted-foreground bg-muted/20 p-2.5 rounded-lg border border-border/40 leading-relaxed">
-                            {task.description}
-                          </p>
-                        )}
-
-                        <div className="flex items-center justify-between text-xs py-1.5 border-t border-border/10">
-                          <div className="flex items-center gap-1 text-muted-foreground">
-                            <Clock className="h-3.5 w-3.5" /> {new Date(task.dueDate).toLocaleDateString('pt-BR')}
-                          </div>
-                          <span className="font-medium text-foreground">Resp: {task.responsibleUser}</span>
-                        </div>
-
-                        <div className="pt-1">
-                          {task.status !== 'completed' ? (
-                            <Button 
-                              variant="outline" 
-                              size="sm" 
-                              onClick={() => updateTaskStatus(task.id, 'completed')}
-                              className="h-9 w-full justify-center text-xs gap-1.5 border-success/30 hover:bg-success/5 text-success-foreground"
-                            >
-                              <Check className="h-3.5 w-3.5 text-success" /> Marcar como Concluída
-                            </Button>
-                          ) : (
-                            <div className="text-xs font-semibold text-success flex items-center justify-center gap-1 py-1.5 bg-success/5 border border-success/15 rounded-lg text-center">
-                              <Check className="h-3.5 w-3.5" /> Concluída
+                    {/* Mobile Card List View */}
+                    <div className="block md:hidden divide-y divide-border/40">
+                      {filteredTasks.map((task) => (
+                        <div key={task.id} className="p-4 space-y-3">
+                          <div className="flex items-start justify-between gap-2">
+                            <div>
+                              <div className="font-semibold text-foreground text-sm leading-snug">{task.title}</div>
+                              <div className="text-[11px] text-primary font-medium mt-0.5">{task.clientName}</div>
                             </div>
+                            <div className="flex flex-col items-end gap-1 shrink-0">
+                              <StatusBadge type="task" status={task.status} />
+                              <StatusBadge type="priority" status={task.priority} />
+                            </div>
+                          </div>
+
+                          {task.description && (
+                            <p className="text-xs text-muted-foreground bg-muted/20 p-2.5 rounded-lg border border-border/40 leading-relaxed">
+                              {task.description}
+                            </p>
                           )}
+
+                          <div className="flex items-center justify-between text-xs py-1.5 border-t border-border/10">
+                            <div className="flex items-center gap-1 text-muted-foreground">
+                              <Clock className="h-3.5 w-3.5" /> {new Date(task.dueDate).toLocaleDateString('pt-BR')}
+                            </div>
+                            <span className="font-medium text-foreground">Resp: {task.responsibleUser}</span>
+                          </div>
+
+                          <div className="pt-1">
+                            {task.status !== 'completed' ? (
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                onClick={() => updateTaskStatus(task.id, 'completed')}
+                                className="h-9 w-full justify-center text-xs gap-1.5 border-success/30 hover:bg-success/5 text-success-foreground"
+                              >
+                                <Check className="h-3.5 w-3.5 text-success" /> Marcar como Concluída
+                              </Button>
+                            ) : (
+                              <div className="text-xs font-semibold text-success flex items-center justify-center gap-1 py-1.5 bg-success/5 border border-success/15 rounded-lg text-center">
+                                <Check className="h-3.5 w-3.5" /> Concluída
+                              </div>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
-                </>
-              )}
-            </CardContent>
-          </Card>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </CardContent>
+            </Card>
+          )}
         </div>
 
       </div>
