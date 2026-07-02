@@ -143,6 +143,8 @@ interface SystemState {
 
   addTask: (task: Omit<TeamTask, 'id' | 'organizationId' | 'createdAt'> & { organizationId?: string }) => TeamTask | null;
   updateTaskStatus: (id: string, status: TaskStatus) => void;
+  updateTask: (id: string, updates: Partial<TeamTask>) => void;
+  addTaskNote: (taskId: string, content: string) => void;
 
   addHistoryEvent: (event: Omit<HistoryEvent, 'id' | 'organizationId' | 'createdAt'> & { organizationId?: string }) => void;
 
@@ -2534,6 +2536,39 @@ export const useStore = create<SystemState>()(
             organizationId: task.organizationId
           });
         }
+      },
+
+      updateTask: (id, updates) => {
+        const activeOrgId = get().currentOrganizationId;
+        set((state) => ({
+          tasks: state.tasks.map((t) => 
+            (t.id === id && t.organizationId === activeOrgId) ? { ...t, ...updates } : t
+          )
+        }));
+      },
+
+      addTaskNote: (taskId, content) => {
+        if (!content || !content.trim()) return;
+        const activeOrgId = get().currentOrganizationId;
+        const author = get().currentUser ? get().currentUser.name : 'Operador';
+        const newNote = {
+          id: `note_${Date.now()}`,
+          authorName: author,
+          content: content.trim(),
+          createdAt: new Date().toISOString()
+        };
+
+        set((state) => ({
+          tasks: state.tasks.map((t) => {
+            if (t.id === taskId && t.organizationId === activeOrgId) {
+              return {
+                ...t,
+                notes: [...(t.notes || []), newNote]
+              };
+            }
+            return t;
+          })
+        }));
       },
 
       addHistoryEvent: (eventData) => {

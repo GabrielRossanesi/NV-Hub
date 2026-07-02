@@ -11,14 +11,19 @@ import {
   Calendar as CalendarIcon,
   Briefcase
 } from 'lucide-react';
-import { TeamTask } from '../../types';
+import { TeamTask, TaskPriority, TaskStatus } from '../../types';
+import { useTenantStore } from '../../lib/store';
 import Modal from './modal';
 import Button from './button';
 import StatusBadge from './status-badge';
+import Input from './input';
+import Textarea from './textarea';
+import Select from './select';
+import DatePicker from './date-picker';
 
 interface TaskCalendarProps {
   tasks: TeamTask[];
-  updateTaskStatus: (taskId: string, status: 'completed' | 'pending' | 'in_progress' | 'in_review') => void;
+  updateTaskStatus: (taskId: string, status: TaskStatus) => void;
 }
 
 const MONTH_NAMES = [
@@ -29,15 +34,32 @@ const MONTH_NAMES = [
 const WEEKDAY_NAMES = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 
 export default function TaskCalendar({ tasks, updateTaskStatus }: TaskCalendarProps) {
+  // Store actions & data
+  const { clients, teamMembers, updateTask, addTaskNote } = useTenantStore();
+
   // Navigation states
   const [currentDate, setCurrentDate] = useState(() => new Date());
   
   const currentMonth = currentDate.getMonth();
   const currentYear = currentDate.getFullYear();
 
-  // Modals state
-  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
-  const [dayModalDateStr, setDayModalDateStr] = useState<string | null>(null);
+  // Main Modal State
+  const [isMainModalOpen, setIsMainModalOpen] = useState(false);
+  const [modalView, setModalView] = useState<'day-tasks' | 'task-detail' | 'task-edit'>('day-tasks');
+  const [activeDateStr, setActiveDateStr] = useState<string | null>(null);
+  const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
+
+  // Notes state
+  const [noteContent, setNoteContent] = useState('');
+
+  // Edit Form States
+  const [editTitle, setEditTitle] = useState('');
+  const [editDesc, setEditDesc] = useState('');
+  const [editClientId, setEditClientId] = useState('');
+  const [editResponsible, setEditResponsible] = useState('');
+  const [editDueDate, setEditDueDate] = useState('');
+  const [editPriority, setEditPriority] = useState<TaskPriority>('medium');
+  const [editStatus, setEditStatus] = useState<TaskStatus>('pending');
 
   // Helper to format date to YYYY-MM-DD local string
   const getLocalDateString = (d: Date) => {
@@ -51,9 +73,15 @@ export default function TaskCalendar({ tasks, updateTaskStatus }: TaskCalendarPr
 
   // Find active selected task details dynamically from tasks list to stay reactive
   const activeTask = useMemo(() => {
-    if (!selectedTaskId) return null;
-    return tasks.find(t => t.id === selectedTaskId) || null;
-  }, [selectedTaskId, tasks]);
+    if (!activeTaskId) return null;
+    return tasks.find(t => t.id === activeTaskId) || null;
+  }, [activeTaskId, tasks]);
+
+  // Tasks for selected day (respects filters since 'tasks' prop is already filtered)
+  const dayTasks = useMemo(() => {
+    if (!activeDateStr) return [];
+    return tasks.filter(t => t.dueDate.split('T')[0] === activeDateStr);
+  }, [activeDateStr, tasks]);
 
   // Navigate to previous month
   const prevMonth = () => {
@@ -132,7 +160,6 @@ export default function TaskCalendar({ tasks, updateTaskStatus }: TaskCalendarPr
   const tasksByDate = useMemo(() => {
     const groups: Record<string, TeamTask[]> = {};
     tasks.forEach(task => {
-      // Expect YYYY-MM-DD or standard format from database/store
       const dateStr = task.dueDate.split('T')[0];
       if (!groups[dateStr]) {
         groups[dateStr] = [];
@@ -183,7 +210,6 @@ export default function TaskCalendar({ tasks, updateTaskStatus }: TaskCalendarPr
   const formatFriendlyDate = (dateStr: string) => {
     try {
       const [y, m, d] = dateStr.split('-');
-      // Month is 0-indexed in JS Dates
       const date = new Date(Number(y), Number(m) - 1, Number(d));
       const daysOfWeek = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
       return `${date.getDate()} de ${MONTH_NAMES[date.getMonth()]} (${daysOfWeek[date.getDay()]})`;
@@ -219,12 +245,51 @@ export default function TaskCalendar({ tasks, updateTaskStatus }: TaskCalendarPr
 
   const handleOpenDayModal = (e: React.MouseEvent, dateStr: string) => {
     e.stopPropagation();
-    setDayModalDateStr(dateStr);
+    setActiveDateStr(dateStr);
+    setModalView('day-tasks');
+    setIsMainModalOpen(true);
   };
 
   const handleOpenTaskDetails = (e: React.MouseEvent, taskId: string) => {
     e.stopPropagation();
-    setSelectedTaskId(taskId);
+    const task = tasks.find(t => t.id === taskId);
+    if (task) {
+      setActiveDateStr(task.dueDate.split('T')[0]);
+    }
+    setActiveTaskId(taskId);
+    setModalView('task-detail');
+    setIsMainModalOpen(true);
+  };
+
+  const handleAddNote = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!noteContent.trim() || !activeTaskId) return;
+    addTaskNote(activeTaskId, noteContent.trim());
+    setNoteContent('');
+  };
+
+  const handleSaveEdit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!activeTaskId || !editTitle.trim() || !editClientId || !editDueDate) {
+      alert('Preencha todos os campos obrigatórios.');
+      return;
+    }
+
+    const client = clients.find(c => c.id === editClientId);
+    if (!client) return;
+
+    updateTask(activeTaskId, {
+      title: editTitle.trim(),
+      clientId: editClientId,
+      clientName: client.companyName,
+      responsibleUser: editResponsible,
+      dueDate: editDueDate,
+      priority: editPriority,
+      status: editStatus,
+      description: editDesc.trim()
+    });
+
+    setModalView('task-detail');
   };
 
   return (
@@ -289,7 +354,8 @@ export default function TaskCalendar({ tasks, updateTaskStatus }: TaskCalendarPr
             return (
               <div 
                 key={`${day.dateString}-${idx}`}
-                className={`p-1.5 flex flex-col justify-between transition-colors group relative ${
+                onClick={(e) => handleOpenDayModal(e, day.dateString)}
+                className={`p-1.5 flex flex-col justify-between transition-colors group relative cursor-pointer hover:bg-muted/5 ${
                   day.isCurrentMonth ? 'bg-card' : 'bg-muted/10'
                 } ${day.isToday ? 'bg-primary/[0.02]' : ''}`}
               >
@@ -339,12 +405,11 @@ export default function TaskCalendar({ tasks, updateTaskStatus }: TaskCalendarPr
 
                 {/* Plus More indicator */}
                 {hasMoreTasks && (
-                  <button
-                    onClick={(e) => handleOpenDayModal(e, day.dateString)}
-                    className="w-full text-center mt-1 text-[9px] font-bold text-primary hover:text-primary/80 transition-colors py-0.5 bg-primary/5 hover:bg-primary/10 rounded border border-primary/10 cursor-pointer"
+                  <div
+                    className="w-full text-center mt-1 text-[9px] font-bold text-primary hover:text-primary/80 transition-colors py-0.5 bg-primary/5 hover:bg-primary/10 rounded border border-primary/10"
                   >
                     + {dayTasks.length - 2} mais
-                  </button>
+                  </div>
                 )}
               </div>
             );
@@ -372,13 +437,20 @@ export default function TaskCalendar({ tasks, updateTaskStatus }: TaskCalendarPr
               return (
                 <div key={group.dateString} className="space-y-2">
                   {/* Sticky/Section Date Header */}
-                  <div className="flex items-center justify-between border-b border-border/40 pb-1.5 sticky top-0 bg-card z-10">
-                    <span className={`text-xs font-bold ${isGroupToday ? 'text-primary' : 'text-foreground'}`}>
+                  <div 
+                    onClick={(e) => handleOpenDayModal(e, group.dateString)}
+                    className="flex items-center justify-between border-b border-border/40 pb-1.5 sticky top-0 bg-card z-10 cursor-pointer hover:text-primary transition-colors group/header"
+                  >
+                    <span className={`text-xs font-bold group-hover/header:underline ${isGroupToday ? 'text-primary' : 'text-foreground'}`}>
                       {formatFriendlyDate(group.dateString)}
                     </span>
-                    {isGroupToday && (
+                    {isGroupToday ? (
                       <span className="text-[9px] bg-primary/15 text-primary border border-primary/20 px-1.5 py-0.5 rounded-full font-bold uppercase tracking-wider">
                         Hoje
+                      </span>
+                    ) : (
+                      <span className="text-[9px] text-muted-foreground font-medium bg-muted/40 rounded border border-border/20 px-1 hover:bg-muted/60 transition-colors">
+                        Ver dia
                       </span>
                     )}
                   </div>
@@ -439,71 +511,117 @@ export default function TaskCalendar({ tasks, updateTaskStatus }: TaskCalendarPr
         )}
       </div>
 
-      {/* Modal 1: Day's full tasks list (Triggered on +X tasks click) */}
+      {/* Main Unified Modal representing the flow: Day Tasks -> Detail -> Edit */}
       <Modal
-        isOpen={dayModalDateStr !== null}
-        onClose={() => setDayModalDateStr(null)}
-        title={dayModalDateStr ? `Tarefas: ${formatFriendlyDate(dayModalDateStr)}` : 'Tarefas do dia'}
-        description="Lista completa de atividades para esta data."
+        isOpen={isMainModalOpen}
+        onClose={() => {
+          setIsMainModalOpen(false);
+          setActiveTaskId(null);
+          setActiveDateStr(null);
+        }}
+        title={
+          modalView === 'day-tasks'
+            ? activeDateStr ? `Tarefas: ${formatFriendlyDate(activeDateStr)}` : 'Tarefas do dia'
+            : modalView === 'task-detail'
+              ? 'Detalhes da Tarefa'
+              : 'Editar Tarefa'
+        }
+        description={
+          modalView === 'day-tasks'
+            ? 'Lista completa de atividades para esta data.'
+            : modalView === 'task-detail'
+              ? 'Visualização completa de informações operacionais.'
+              : 'Altere os campos da tarefa abaixo.'
+        }
         size="md"
       >
-        <div className="space-y-3 pt-2">
-          {dayModalDateStr && (tasksByDate[dayModalDateStr] || []).map(task => {
-            const isCompleted = task.status === 'completed';
-            const isOverdue = !isCompleted && (task.status === 'overdue' || new Date(task.dueDate) < new Date(new Date().setHours(0,0,0,0)));
+        {/* Navigation Breadcrumb */}
+        {modalView !== 'day-tasks' && activeDateStr && (
+          <button
+            type="button"
+            onClick={() => {
+              if (modalView === 'task-edit') {
+                setModalView('task-detail');
+              } else {
+                setModalView('day-tasks');
+              }
+            }}
+            className="mb-4 text-xs font-semibold text-primary hover:text-primary/80 transition-colors flex items-center gap-1 cursor-pointer select-none"
+          >
+            <ChevronLeft className="h-4 w-4" /> 
+            {modalView === 'task-edit' ? 'Voltar para detalhes' : 'Voltar para a lista do dia'}
+          </button>
+        )}
 
-            return (
-              <div 
-                key={task.id}
-                onClick={(e) => {
-                  setDayModalDateStr(null);
-                  handleOpenTaskDetails(e, task.id);
-                }}
-                className={`p-3.5 rounded-lg border border-border bg-muted/10 hover:border-primary/40 hover:bg-muted/20 transition-all flex items-center justify-between gap-4 cursor-pointer`}
-              >
-                <div className="space-y-1 flex-1 min-w-0">
-                  <h4 className={`text-xs font-bold truncate text-foreground ${isCompleted ? 'line-through text-muted-foreground/70' : ''}`}>
-                    {task.title}
-                  </h4>
-                  <div className="flex items-center gap-2 flex-wrap text-[10px]">
-                    <span className="text-primary font-semibold flex items-center gap-0.5">
-                      <Briefcase className="h-3 w-3" /> {task.clientName}
-                    </span>
-                    <span className="text-muted-foreground flex items-center gap-0.5 border-l border-border/40 pl-2">
-                      <User className="h-3 w-3 text-muted-foreground/70" /> {task.responsibleUser}
-                    </span>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <StatusBadge type="priority" status={task.priority} />
-                  <StatusBadge type="task" status={task.status} />
-                  {isOverdue && (
-                    <span className="text-[10px] bg-danger/10 text-danger border border-danger/20 font-bold px-1.5 py-0.5 rounded">
-                      Atrasada
-                    </span>
-                  )}
-                </div>
+        {/* View 1: Day's Tasks List */}
+        {modalView === 'day-tasks' && (
+          <div className="space-y-3 pt-1">
+            {dayTasks.length === 0 ? (
+              <div className="py-8 text-center bg-muted/10 rounded-lg border border-dashed border-border/60">
+                <Clock className="mx-auto h-6 w-6 text-muted-foreground/45 mb-2" />
+                <p className="text-xs text-muted-foreground font-medium">Nenhuma tarefa para este dia.</p>
               </div>
-            );
-          })}
-          <div className="flex justify-end pt-3">
-            <Button variant="outline" size="sm" onClick={() => setDayModalDateStr(null)}>
-              Fechar
-            </Button>
-          </div>
-        </div>
-      </Modal>
+            ) : (
+              <div className="space-y-2.5 max-h-[50vh] overflow-y-auto pr-1 modal-scrollbar">
+                {dayTasks.map(task => {
+                  const isCompleted = task.status === 'completed';
+                  const isOverdue = !isCompleted && (task.status === 'overdue' || new Date(task.dueDate) < new Date(new Date().setHours(0,0,0,0)));
 
-      {/* Modal 2: Task Quick details view */}
-      <Modal
-        isOpen={selectedTaskId !== null}
-        onClose={() => setSelectedTaskId(null)}
-        title="Detalhes da Tarefa"
-        description="Visualização rápida de informações operacionais."
-        size="md"
-      >
-        {activeTask ? (
-          <div className="space-y-4 pt-2">
+                  return (
+                    <div 
+                      key={task.id}
+                      onClick={() => {
+                        setActiveTaskId(task.id);
+                        setModalView('task-detail');
+                      }}
+                      className="p-3 rounded-lg border border-border bg-muted/10 hover:border-primary/40 hover:bg-muted/20 transition-all flex items-center justify-between gap-4 cursor-pointer"
+                    >
+                      <div className="space-y-1 flex-1 min-w-0">
+                        <h4 className={`text-xs font-bold truncate text-foreground ${isCompleted ? 'line-through text-muted-foreground/70' : ''}`}>
+                          {task.title}
+                        </h4>
+                        <div className="flex items-center gap-2 flex-wrap text-[10px]">
+                          <span className="text-primary font-semibold flex items-center gap-0.5">
+                            <Briefcase className="h-3 w-3" /> {task.clientName}
+                          </span>
+                          <span className="text-muted-foreground flex items-center gap-0.5 border-l border-border/40 pl-2">
+                            <User className="h-3 w-3 text-muted-foreground/70" /> {task.responsibleUser}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <StatusBadge type="priority" status={task.priority} />
+                        <StatusBadge type="task" status={task.status} />
+                        {isOverdue && (
+                          <span className="text-[10px] bg-danger/10 text-danger border border-danger/20 font-bold px-1.5 py-0.5 rounded">
+                            Atrasada
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            <div className="flex justify-end pt-3 border-t border-border/10">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => {
+                  setIsMainModalOpen(false);
+                  setActiveTaskId(null);
+                  setActiveDateStr(null);
+                }}
+              >
+                Fechar
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* View 2: Detailed Task Details */}
+        {modalView === 'task-detail' && activeTask && (
+          <div className="space-y-4 pt-1">
             <div>
               <span className="text-[10px] text-primary font-bold uppercase tracking-wider block mb-0.5">
                 Título
@@ -513,18 +631,16 @@ export default function TaskCalendar({ tasks, updateTaskStatus }: TaskCalendarPr
               </h3>
             </div>
 
-            {activeTask.description && (
-              <div>
-                <span className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider block mb-1">
-                  Descrição / Orientações
-                </span>
-                <p className="text-xs text-foreground bg-muted/40 p-3 rounded-lg border border-border/40 whitespace-pre-wrap leading-relaxed">
-                  {activeTask.description}
-                </p>
-              </div>
-            )}
+            <div>
+              <span className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider block mb-1">
+                Descrição / Orientações
+              </span>
+              <p className="text-xs text-foreground bg-muted/40 p-3 rounded-lg border border-border/40 whitespace-pre-wrap leading-relaxed">
+                {activeTask.description || 'Nenhuma descrição adicionada.'}
+              </p>
+            </div>
 
-            <div className="grid grid-cols-2 gap-4 border-t border-b border-border/20 py-3.5 text-xs">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 border-t border-b border-border/20 py-3.5 text-xs">
               <div className="space-y-1">
                 <span className="text-[10px] text-muted-foreground block font-medium">Cliente Vinculado</span>
                 <span className="font-semibold text-foreground flex items-center gap-1">
@@ -549,7 +665,7 @@ export default function TaskCalendar({ tasks, updateTaskStatus }: TaskCalendarPr
                   <StatusBadge type="priority" status={activeTask.priority} />
                 </div>
               </div>
-              <div className="space-y-1 col-span-2">
+              <div className="space-y-1 col-span-1 sm:col-span-2">
                 <span className="text-[10px] text-muted-foreground block font-medium">Status Atual</span>
                 <div className="flex items-center gap-2 pt-0.5">
                   <StatusBadge type="task" status={activeTask.status} />
@@ -562,32 +678,212 @@ export default function TaskCalendar({ tasks, updateTaskStatus }: TaskCalendarPr
               </div>
             </div>
 
-            <div className="flex justify-between items-center pt-3 gap-3">
-              <div>
+            {/* Notes/Comments Section */}
+            <div className="border-t border-border/20 pt-4">
+              <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-3">
+                Observações ({activeTask.notes?.length || 0})
+              </h4>
+              
+              <div className="space-y-3 max-h-48 overflow-y-auto pr-1 mb-4 modal-scrollbar">
+                {!activeTask.notes || activeTask.notes.length === 0 ? (
+                  <p className="text-xs text-muted-foreground italic py-1">Nenhuma observação adicionada.</p>
+                ) : (
+                  [...activeTask.notes].sort((a,b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()).map((note) => (
+                    <div key={note.id} className="bg-muted/30 p-2.5 rounded-lg border border-border/40 text-xs">
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="font-bold text-primary">{note.authorName}</span>
+                        <span className="text-[10px] text-muted-foreground">
+                          {new Date(note.createdAt).toLocaleString('pt-BR')}
+                        </span>
+                      </div>
+                      <p className="text-foreground whitespace-pre-wrap leading-relaxed">{note.content}</p>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              <form onSubmit={handleAddNote} className="space-y-2">
+                <Textarea
+                  placeholder="Escreva uma observação..."
+                  value={noteContent}
+                  onChange={(e) => setNoteContent(e.target.value)}
+                  rows={2}
+                  className="text-xs"
+                  required
+                />
+                <div className="flex justify-end">
+                  <Button 
+                    type="submit" 
+                    size="sm"
+                    className="text-xs h-8"
+                  >
+                    Adicionar Observação
+                  </Button>
+                </div>
+              </form>
+            </div>
+
+            {/* Quick Actions Footer */}
+            <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center pt-4 border-t border-border/10 gap-3">
+              <div className="flex flex-wrap gap-2">
                 {activeTask.status !== 'completed' ? (
                   <Button
+                    type="button"
                     variant="outline"
                     size="sm"
                     onClick={() => {
                       updateTaskStatus(activeTask.id, 'completed');
                     }}
-                    className="text-xs h-9 border-success/30 hover:bg-success/5 text-success hover:border-success/60 flex items-center gap-1.5"
+                    className="text-xs h-9 border-success/30 hover:bg-success/5 text-success hover:border-success/60 flex items-center gap-1.5 justify-center"
                   >
                     <Check className="h-4 w-4" /> Marcar como Concluída
                   </Button>
                 ) : (
-                  <span className="text-xs font-semibold text-success flex items-center gap-1 bg-success/5 border border-success/15 px-3 py-1.5 rounded-lg">
-                    <Check className="h-4 w-4" /> Tarefa Concluída
-                  </span>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      updateTaskStatus(activeTask.id, 'pending');
+                    }}
+                    className="text-xs h-9 border-warning/30 hover:bg-warning/5 text-warning hover:border-warning/60 flex items-center gap-1.5 justify-center"
+                  >
+                    Reabrir Tarefa
+                  </Button>
                 )}
+                
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    // Populate edit form states
+                    setEditTitle(activeTask.title);
+                    setEditDesc(activeTask.description || '');
+                    setEditClientId(activeTask.clientId);
+                    setEditResponsible(activeTask.responsibleUser);
+                    setEditDueDate(activeTask.dueDate.split('T')[0]);
+                    setEditPriority(activeTask.priority);
+                    setEditStatus(activeTask.status);
+                    setModalView('task-edit');
+                  }}
+                  className="text-xs h-9 border-border/60 hover:bg-muted/40 justify-center"
+                >
+                  Editar Tarefa
+                </Button>
               </div>
-              <Button variant="secondary" size="sm" onClick={() => setSelectedTaskId(null)} className="h-9">
+              <Button 
+                variant="secondary" 
+                size="sm" 
+                onClick={() => {
+                  if (activeDateStr) {
+                    setModalView('day-tasks');
+                  } else {
+                    setIsMainModalOpen(false);
+                    setActiveTaskId(null);
+                    setActiveDateStr(null);
+                  }
+                }}
+                className="h-9 justify-center"
+              >
                 Fechar
               </Button>
             </div>
           </div>
-        ) : (
-          <p className="text-xs text-muted-foreground py-4 text-center">Nenhum detalhe disponível.</p>
+        )}
+
+        {/* View 3: Edit Task Form */}
+        {modalView === 'task-edit' && activeTask && (
+          <form onSubmit={handleSaveEdit} className="space-y-4 pt-1">
+            <Input
+              label="Título da Tarefa"
+              type="text"
+              value={editTitle}
+              onChange={(e) => setEditTitle(e.target.value)}
+              required
+              className="text-xs"
+            />
+
+            <Select
+              label="Cliente Vinculado"
+              options={clients.map(c => ({ value: c.id, label: c.companyName }))}
+              value={editClientId}
+              onChange={(e) => setEditClientId(e.target.value)}
+              required
+              className="text-xs"
+            />
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Select
+                label="Responsável"
+                options={teamMembers.map(m => ({ value: m.name, label: m.name }))}
+                value={editResponsible}
+                onChange={(e) => setEditResponsible(e.target.value)}
+                className="text-xs"
+              />
+              <DatePicker
+                label="Prazo"
+                value={editDueDate}
+                onChange={(e) => setEditDueDate(e.target.value)}
+                required
+                className="text-xs"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Select
+                label="Prioridade"
+                options={[
+                  { value: 'low', label: 'Baixa' },
+                  { value: 'medium', label: 'Média' },
+                  { value: 'high', label: 'Alta' },
+                  { value: 'urgent', label: 'Urgente' }
+                ]}
+                value={editPriority}
+                onChange={(e) => setEditPriority(e.target.value as TaskPriority)}
+                className="text-xs"
+              />
+              <Select
+                label="Status"
+                options={[
+                  { value: 'pending', label: 'Pendente' },
+                  { value: 'in_progress', label: 'Em Andamento' },
+                  { value: 'in_review', label: 'Em Revisão' },
+                  { value: 'completed', label: 'Concluído' }
+                ]}
+                value={editStatus}
+                onChange={(e) => setEditStatus(e.target.value as TaskStatus)}
+                className="text-xs"
+              />
+            </div>
+
+            <Textarea
+              label="Descrição / Orientações"
+              value={editDesc}
+              onChange={(e) => setEditDesc(e.target.value)}
+              rows={3}
+              className="text-xs"
+            />
+
+            <div className="flex justify-end gap-3 pt-4 border-t border-border/10">
+              <Button 
+                type="button" 
+                variant="outline" 
+                size="sm"
+                onClick={() => setModalView('task-detail')}
+                className="h-9"
+              >
+                Cancelar
+              </Button>
+              <Button 
+                type="submit" 
+                size="sm"
+                className="h-9"
+              >
+                Salvar Alterações
+              </Button>
+            </div>
+          </form>
         )}
       </Modal>
     </div>

@@ -189,6 +189,13 @@ export interface Publication {
 export type TaskStatus = 'pending' | 'in_progress' | 'in_review' | 'completed' | 'overdue';
 export type TaskPriority = 'low' | 'medium' | 'high' | 'urgent';
 
+export interface TaskNote {
+  id: string;
+  authorName: string;
+  content: string;
+  createdAt: string;
+}
+
 export interface TeamTask {
   id: string;
   organizationId: string; // SaaS Tenant Isolation
@@ -201,6 +208,7 @@ export interface TeamTask {
   priority: TaskPriority;
   description?: string;
   createdAt: string;
+  notes?: TaskNote[];
 }
 
 export interface HistoryEvent {
