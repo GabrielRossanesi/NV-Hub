@@ -606,25 +606,22 @@ export async function getTaskNotes(taskId: string): Promise<TaskNote[]> {
 export async function getOrganizationMembers() {
   if (!isDatabaseDataMode) return [];
 
-  const session = await getSession();
-  if (!session || !session.session.activeOrganizationId) {
+  const tenantContext = await getCurrentDatabaseTenantContext();
+  if (!tenantContext) {
     throw new Error('Não autorizado.');
   }
 
-  const activeOrgId = session.session.activeOrganizationId;
-  await validateTenantAccess(activeOrgId);
-
   const members = await prisma.member.findMany({
-    where: { organizationId: activeOrgId },
-    include: {
-      user: true,
+    where: { organizationId: tenantContext.organization.id },
+    select: {
+      role: true,
+      user: { select: { id: true, name: true } },
     },
   });
 
   return members.map((m) => ({
     id: m.user.id,
     name: m.user.name,
-    email: m.user.email,
     role: m.role,
   }));
 }

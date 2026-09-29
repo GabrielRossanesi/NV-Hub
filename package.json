@@ -7,7 +7,8 @@
     "build": "prisma generate && next build",
     "start": "next start",
     "lint": "eslint",
-    "perf:db": "node scripts/measure-db-latency.mjs"
+    "perf:db": "node scripts/measure-db-latency.mjs",
+    "db:compare-counts": "node scripts/compare-db-counts.mjs"
   },
   "dependencies": {
     "@prisma/client": "^6.19.3",
