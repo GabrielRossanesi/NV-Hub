@@ -98,12 +98,12 @@ export function LogoSidebar({ className = '', isCollapsed = false }: { className
       <span className="nv-brand-mark flex h-11 w-11 shrink-0 items-center justify-center rounded-lg">
         <LogoIcon size="md" />
       </span>
-      <div className="flex min-w-0 flex-col">
+      <div className="nv-sidebar-logo-copy flex min-w-0 flex-col">
         <div className="flex items-baseline text-base font-bold leading-none tracking-[-0.025em] text-foreground">
           <span>NV</span>
           <span className="ml-1 font-semibold tracking-wide text-primary">Hub</span>
         </div>
-        <span className="mt-1.5 truncate font-mono text-[0.5625rem] font-semibold uppercase tracking-[0.13em] text-foreground-muted">
+        <span className="mt-1.5 truncate font-mono text-[0.5625rem] font-semibold uppercase tracking-[0.08em] text-foreground-muted">
           Operações conectadas
         </span>
       </div>

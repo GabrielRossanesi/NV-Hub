@@ -340,13 +340,180 @@ body {
     0 8px 22px color-mix(in srgb, var(--primary) 8%, transparent);
 }
 
-.nv-nav-active {
-  background: linear-gradient(90deg, color-mix(in srgb, var(--primary) 14%, var(--surface)) 0%, var(--surface-subtle) 82%);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--primary) 15%, var(--border));
+.nv-app-shell {
+  --navigation-radius: calc(var(--nv-radius-lg) + var(--nv-radius-md));
+  --navigation-curve: var(--nv-radius-lg);
+  --navigation-duration: 240ms;
+  --navigation-easing: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.nv-nav-active::before {
-  box-shadow: 0 0 12px color-mix(in srgb, var(--primary) 58%, transparent);
+.nv-app-workspace {
+  background: var(--background);
+}
+
+/* The canvas fades at the shared edge so the active item joins one surface. */
+.nv-app-workspace > .app-shell-atmosphere {
+  mask-image: linear-gradient(to right, transparent, black 48px);
+}
+
+.nv-glass-sidebar {
+  background: var(--shell-sidebar);
+  transition: transform var(--navigation-duration) var(--navigation-easing),
+    width var(--navigation-duration) var(--navigation-easing);
+}
+
+.nv-sidebar-header {
+  border-radius: var(--navigation-radius) 0 0 0;
+}
+
+.nv-sidebar-toggle {
+  display: none;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  flex-shrink: 0;
+  border-radius: var(--nv-radius-md);
+}
+
+.nv-sidebar-navigation {
+  overflow-x: hidden;
+  padding: 16px 0 16px 12px;
+  overscroll-behavior: contain;
+  /* A scrollbar gutter would interrupt the connection to the workspace. */
+  scrollbar-width: none;
+}
+
+.nv-sidebar-navigation::-webkit-scrollbar {
+  display: none;
+}
+
+.nv-sidebar-navigation-content {
+  position: relative;
+  isolation: isolate;
+}
+
+.nv-sidebar-navigation-group + .nv-sidebar-navigation-group {
+  margin-top: 20px;
+}
+
+.nv-sidebar-group-label {
+  display: flex;
+  height: 24px;
+  align-items: center;
+  padding-inline: 12px;
+  color: var(--foreground-muted);
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+}
+
+.nv-sidebar-item {
+  padding: 0 16px 0 8px;
+  border-radius: var(--nv-radius-lg) 0 0 var(--nv-radius-lg);
+  color: var(--foreground-secondary);
+  outline-offset: -3px;
+  transition: color 160ms;
+}
+
+.nv-sidebar-item::before {
+  content: '';
+  position: absolute;
+  inset: 0 12px 0 0;
+  z-index: -1;
+  border-radius: var(--nv-radius-lg);
+  background: color-mix(in srgb, var(--surface-elevated) 64%, transparent);
+  opacity: 0;
+  transition: opacity 160ms;
+}
+
+.nv-sidebar-item:hover {
+  color: var(--foreground);
+}
+
+.nv-sidebar-item:hover::before {
+  opacity: 1;
+}
+
+.nv-sidebar-item:focus-visible {
+  outline: 2px solid var(--primary);
+}
+
+.nv-sidebar-icon {
+  color: var(--foreground-muted);
+  background: color-mix(in srgb, var(--surface-elevated) 35%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--border) 35%, transparent);
+  transition: color 160ms, background-color 160ms, box-shadow 160ms;
+}
+
+.nv-sidebar-item:hover .nv-sidebar-icon {
+  color: var(--foreground-secondary);
+  background: var(--surface-subtle);
+}
+
+.nv-sidebar-item[aria-current='page'] {
+  color: var(--foreground);
+  font-weight: 600;
+}
+
+.nv-sidebar-item[aria-current='page']::before {
+  inset-inline-end: 0;
+  border-radius: var(--nv-radius-lg) 0 0 var(--nv-radius-lg);
+  background: var(--background);
+  opacity: 1;
+}
+
+.nv-sidebar-item[aria-current='page'] .nv-sidebar-icon {
+  color: var(--primary);
+  background: var(--primary-subtle);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--primary) 22%, var(--border));
+}
+
+.nv-sidebar-active-indicator {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  z-index: -1;
+  height: 44px;
+  border-radius: var(--nv-radius-lg) 0 0 var(--nv-radius-lg);
+  background: var(--background);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.nv-sidebar-navigation-content[data-indicator-ready='true'] .nv-sidebar-active-indicator {
+  opacity: 1;
+  transition: transform var(--navigation-duration) var(--navigation-easing);
+}
+
+.nv-sidebar-navigation-content[data-indicator-ready='true'] .nv-sidebar-item[aria-current='page']::before {
+  opacity: 0;
+}
+
+.nv-sidebar-active-indicator::before,
+.nv-sidebar-active-indicator::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  width: var(--navigation-curve);
+  height: var(--navigation-curve);
+}
+
+.nv-sidebar-active-indicator::before {
+  bottom: 100%;
+  background: radial-gradient(circle at 0 0, transparent var(--navigation-curve), var(--background) calc(var(--navigation-curve) + 0.5px));
+}
+
+.nv-sidebar-active-indicator::after {
+  top: 100%;
+  background: radial-gradient(circle at 0 100%, transparent var(--navigation-curve), var(--background) calc(var(--navigation-curve) + 0.5px));
+}
+
+.nv-sidebar-label,
+.nv-sidebar-logo-copy {
+  opacity: 1;
+  transition: opacity 140ms;
 }
 
 button,
@@ -395,40 +562,100 @@ textarea {
 
 /* Keep the persisted desktop Sidebar width stable before React hydrates. */
 @media (min-width: 1024px) {
+  .nv-sidebar-toggle {
+    display: inline-flex;
+  }
+
+  .nv-app-shell {
+    padding: 12px;
+  }
+
+  .nv-glass-sidebar {
+    flex-shrink: 0;
+    border: 1px solid var(--border);
+    border-right: 0;
+    border-radius: var(--navigation-radius) 0 0 var(--navigation-radius);
+    background: color-mix(in srgb, var(--shell-sidebar) 88%, transparent);
+    backdrop-filter: blur(16px);
+    box-shadow: inset 1px 0 0 color-mix(in srgb, var(--surface-elevated) 30%, transparent);
+  }
+
+  .nv-app-workspace {
+    border: 1px solid var(--border);
+    border-left: 0;
+    border-radius: 0 var(--navigation-radius) var(--navigation-radius) 0;
+  }
+
+  .nv-brand-signal {
+    left: 16px;
+  }
+
   html[data-sidebar-collapsed='true'] #nvhub-sidebar {
     width: 4.5rem;
   }
 
   html[data-sidebar-collapsed='true'] #nvhub-sidebar-header {
-    padding-inline: 0;
+    padding-inline: 13px;
   }
 
   html[data-sidebar-collapsed='true'] #nvhub-sidebar-brand-link {
     display: flex;
-    width: 2.25rem;
-    height: 2.25rem;
+    width: 44px;
+    height: 44px;
     flex: none;
     align-items: center;
-    overflow: hidden;
-  }
-
-  html[data-sidebar-collapsed='true'] #nvhub-sidebar-brand-link > div {
-    transform: scale(0.82);
-    transform-origin: left center;
+    border-radius: var(--nv-radius-lg);
   }
 
   html[data-sidebar-collapsed='true'] #nvhub-sidebar-toggle {
-    width: 2.25rem;
-    height: 2.25rem;
+    position: absolute;
+    inset: 12px auto auto 13px;
+    width: 44px;
+    height: 44px;
+    border: 1px solid color-mix(in srgb, var(--primary) 20%, var(--border));
+    border-radius: var(--nv-radius-lg);
+    background: var(--shell-sidebar);
+    color: var(--primary);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 140ms;
+  }
+
+  html[data-sidebar-collapsed='true'] #nvhub-sidebar-header:hover #nvhub-sidebar-toggle,
+  html[data-sidebar-collapsed='true'] #nvhub-sidebar-header:focus-within #nvhub-sidebar-toggle {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  html[data-sidebar-collapsed='true'] .nv-sidebar-logo-copy,
+  html[data-sidebar-collapsed='true'] .nv-sidebar-label {
+    max-width: 0;
+    overflow: hidden;
+    opacity: 0;
+  }
+
+  html[data-sidebar-collapsed='true'] .nv-sidebar-group-label {
+    height: 16px;
+  }
+
+  html[data-sidebar-collapsed='true'] .nv-sidebar-group-label span {
+    display: none;
+  }
+
+  html[data-sidebar-collapsed='true'] .nv-sidebar-navigation-group + .nv-sidebar-navigation-group .nv-sidebar-group-label::before {
+    content: '';
+    width: 24px;
+    height: 1px;
+    background: var(--border);
   }
 
   html[data-sidebar-collapsed='true'] #nvhub-sidebar-workspace {
     padding: 0.75rem;
   }
 
-  html[data-sidebar-collapsed='true'] #nvhub-sidebar-workspace p,
-  html[data-sidebar-collapsed='true'] #nvhub-sidebar-workspace button > span:not(:first-child),
-  html[data-sidebar-collapsed='true'] #nvhub-sidebar-workspace button > svg,
+  html[data-sidebar-collapsed='true'] #nvhub-sidebar-workspace > div > p,
+  html[data-sidebar-collapsed='true'] #nvhub-sidebar-workspace > div > button > span:not(:first-child),
+  html[data-sidebar-collapsed='true'] #nvhub-sidebar-workspace > div > button > svg,
   html[data-sidebar-collapsed='true'] #nvhub-sidebar .nv-sidebar-expanded-only {
     display: none;
   }
@@ -443,13 +670,15 @@ textarea {
   }
 
   html[data-sidebar-collapsed='true'] #nvhub-sidebar-navigation {
-    padding-inline: 0.5rem;
+    padding-left: 8px;
+    padding-right: 0;
   }
 
   html[data-sidebar-collapsed='true'] #nvhub-sidebar .nv-sidebar-item {
-    justify-content: center;
+    justify-content: flex-start;
     gap: 0;
-    padding-inline: 0;
+    padding-left: 12px;
+    padding-right: 12px;
   }
 
   html[data-sidebar-collapsed='true'] #nvhub-sidebar-account > div > button {
@@ -462,6 +691,13 @@ textarea {
   html[data-sidebar-collapsed='true'] #nvhub-sidebar-account > div > button > span:not(:first-child),
   html[data-sidebar-collapsed='true'] #nvhub-sidebar-account > div > button > svg {
     display: none;
+  }
+}
+
+@media (min-width: 1024px) and (hover: none) {
+  html[data-sidebar-collapsed='true'] #nvhub-sidebar-toggle {
+    opacity: 1;
+    pointer-events: auto;
   }
 }
 

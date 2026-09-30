@@ -48,9 +48,12 @@ interface SidebarProps {
 interface NavigationTooltipState {
   label: string;
   top: number;
+  left: number;
 }
 
 const desktopMediaQuery = '(min-width: 1024px)';
+// Sibling route layouts remount the shell; retain only the last route for motion continuity.
+let previousNavigationHref = '';
 
 function subscribeToDesktop(callback: () => void) {
   const query = window.matchMedia(desktopMediaQuery);
@@ -116,6 +119,9 @@ export function Sidebar({ isOpen, onClose, triggerRef }: SidebarProps) {
   const showCompact = isDesktop && storedSidebarCollapsed;
   const panelRef = useRef<HTMLElement>(null);
   const mobileCloseRef = useRef<HTMLButtonElement>(null);
+  const navigationRef = useRef<HTMLElement>(null);
+  const navigationContentRef = useRef<HTMLDivElement>(null);
+  const activeIndicatorRef = useRef<HTMLSpanElement>(null);
   const [navigationTooltip, setNavigationTooltip] = useState<NavigationTooltipState | null>(null);
 
   const sandboxOrganization = sandboxOrganizations.find(org => org.id === sandboxCurrentOrganizationId);
@@ -219,10 +225,61 @@ export function Sidebar({ isOpen, onClose, triggerRef }: SidebarProps) {
     return true;
   });
 
+  const visibleGroups = menuGroups
+    .map(group => ({ ...group, items: filterMenuItems(group.items) }))
+    .filter(group => group.items.length > 0);
+  const navigationKey = visibleGroups.flatMap(group => group.items.map(item => item.href)).join('|');
+
+  useEffect(() => {
+    const nav = navigationRef.current;
+    const content = navigationContentRef.current;
+    const indicator = activeIndicatorRef.current;
+    if (!nav || !content || !indicator) return;
+    const active = content.querySelector<HTMLElement>('[aria-current="page"]');
+    if (!active) {
+      delete content.dataset.indicatorReady;
+      return;
+    }
+    const previous = Array.from(content.querySelectorAll<HTMLAnchorElement>('a[href]'))
+      .find(link => link.getAttribute('href') === previousNavigationHref);
+    const activeHref = active.getAttribute('href') || '';
+    const shouldAnimateEntry = previous && previousNavigationHref !== activeHref
+      && !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const rememberFrame = requestAnimationFrame(() => { previousNavigationHref = activeHref; });
+
+    const updateIndicator = () => {
+      const itemBounds = active.getBoundingClientRect();
+      const contentBounds = content.getBoundingClientRect();
+      indicator.style.transform = `translateY(${itemBounds.top - contentBounds.top}px)`;
+      indicator.style.height = `${itemBounds.height}px`;
+    };
+    updateIndicator();
+    content.dataset.indicatorReady = 'true';
+    const entryAnimation = shouldAnimateEntry ? indicator.animate([
+      { transform: `translateY(${previous.getBoundingClientRect().top - content.getBoundingClientRect().top}px)` },
+      { transform: indicator.style.transform },
+    ], { duration: 240, easing: 'cubic-bezier(0.22, 1, 0.36, 1)' }) : null;
+    const observer = new ResizeObserver(updateIndicator);
+    observer.observe(content);
+    observer.observe(active);
+
+    // Scroll the navigation alone, keeping the workspace and mobile drawer still.
+    const navBounds = nav.getBoundingClientRect();
+    const activeBounds = active.getBoundingClientRect();
+    if (activeBounds.top < navBounds.top + 16) nav.scrollTop -= navBounds.top + 16 - activeBounds.top;
+    else if (activeBounds.bottom > navBounds.bottom - 16) nav.scrollTop += activeBounds.bottom - navBounds.bottom + 16;
+
+    return () => {
+      cancelAnimationFrame(rememberFrame);
+      entryAnimation?.cancel();
+      observer.disconnect();
+    };
+  }, [pathname, showCompact, navigationKey]);
+
   const showTooltip = (element: HTMLElement, label: string) => {
     if (!showCompact) return;
     const rect = element.getBoundingClientRect();
-    setNavigationTooltip({ label, top: rect.top + rect.height / 2 });
+    setNavigationTooltip({ label, top: rect.top + rect.height / 2, left: rect.right + 12 });
   };
 
   return (
@@ -241,7 +298,7 @@ export function Sidebar({ isOpen, onClose, triggerRef }: SidebarProps) {
         aria-label="Navegação principal"
         aria-hidden={!isDesktop && !isOpen}
         inert={!isDesktop && !isOpen}
-        className={`fixed inset-y-0 left-0 z-50 flex w-64 flex-col overflow-x-hidden border-r border-border/80 bg-shell-sidebar shadow-elevated transition-[transform,width] duration-200 ease-out lg:relative lg:translate-x-0 lg:shadow-none ${
+        className={`nv-glass-sidebar fixed inset-y-0 left-0 z-50 flex w-64 flex-col shadow-elevated lg:relative lg:translate-x-0 lg:shadow-none ${
           isOpen ? 'translate-x-0' : '-translate-x-full'
         } ${showCompact ? 'lg:w-18' : 'lg:w-64'}`}
       >
@@ -249,22 +306,22 @@ export function Sidebar({ isOpen, onClose, triggerRef }: SidebarProps) {
 
         <div
           id="nvhub-sidebar-header"
-          className={`flex h-[4.25rem] shrink-0 items-center justify-between border-b border-border/80 ${showCompact ? 'px-0' : 'px-4'}`}
+          className="nv-sidebar-header relative flex h-[4.25rem] shrink-0 items-center justify-between gap-2 px-3"
         >
           <Link
             id="nvhub-sidebar-brand-link"
             href="/dashboard"
             onClick={closeMobileNavigation}
             aria-label="Ir para o Dashboard"
-            className="shrink-0 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+            className="min-w-0 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
           >
-            <LogoSidebar isCollapsed={showCompact} />
+            <LogoSidebar />
           </Link>
           <IconButton
             id="nvhub-sidebar-toggle"
             variant="ghost"
             size="sm"
-            className={`hidden rounded-md border border-border text-foreground-muted hover:border-border-strong hover:bg-surface-subtle hover:text-foreground lg:inline-flex ${showCompact ? 'h-9 w-9' : 'h-9 w-9'}`}
+            className="nv-sidebar-toggle hidden text-foreground-muted hover:bg-surface-subtle hover:text-primary lg:inline-flex"
             label={storedSidebarCollapsed ? 'Expandir navegação' : 'Recolher navegação'}
             aria-controls="nvhub-sidebar-navigation"
             aria-expanded={!storedSidebarCollapsed}
@@ -288,7 +345,7 @@ export function Sidebar({ isOpen, onClose, triggerRef }: SidebarProps) {
           )}
         </div>
 
-        <div id="nvhub-sidebar-workspace" className={`shrink-0 border-b border-border/80 ${showCompact ? 'p-3' : 'px-3 py-4'}`}>
+        <div id="nvhub-sidebar-workspace" className={`shrink-0 ${showCompact ? 'p-3' : 'px-3 py-4'}`}>
           <WorkspaceSwitcher
             organizations={organizations}
             currentOrganization={currentOrganization}
@@ -298,24 +355,19 @@ export function Sidebar({ isOpen, onClose, triggerRef }: SidebarProps) {
           />
         </div>
 
-        <nav id="nvhub-sidebar-navigation" className={`min-h-0 flex-1 overflow-y-auto py-4 ${showCompact ? 'px-2' : 'px-3'}`}>
-          <div className={showCompact ? 'space-y-2' : 'space-y-4'}>
-            {menuGroups.map((group, groupIndex) => {
-              const items = filterMenuItems(group.items);
-              if (items.length === 0) return null;
-
+        <nav ref={navigationRef} id="nvhub-sidebar-navigation" aria-label="Módulos" className="nv-sidebar-navigation min-h-0 flex-1 overflow-y-auto" onScroll={() => setNavigationTooltip(null)} onKeyDown={event => { if (event.key === 'Escape') setNavigationTooltip(null); }}>
+          <div ref={navigationContentRef} className="nv-sidebar-navigation-content">
+            <span ref={activeIndicatorRef} className="nv-sidebar-active-indicator" aria-hidden="true" />
+            {visibleGroups.map(group => {
               return (
-                <div key={group.title}>
-                  {!showCompact && (
-                    <p className="nv-sidebar-expanded-only mb-1.5 px-2.5 text-[0.625rem] font-semibold uppercase tracking-[0.17em] text-foreground-muted">
-                      {group.title}
-                    </p>
-                  )}
-                  {showCompact && groupIndex > 0 && <div className="mx-2 mb-2 h-px bg-border" aria-hidden="true" />}
+                <div key={group.title} className="nv-sidebar-navigation-group">
+                  <p className="nv-sidebar-group-label" aria-hidden={showCompact}>
+                    <span>{group.title}</span>
+                  </p>
                   <div className="space-y-0.5">
-                    {items.map(item => {
+                    {group.items.map(item => {
                       const Icon = item.icon;
-                      const isActive = pathname?.startsWith(item.href) ?? false;
+                      const isActive = pathname === item.href || pathname?.startsWith(`${item.href}/`) || false;
 
                       return (
                         <div key={item.href} className="group relative">
@@ -326,26 +378,16 @@ export function Sidebar({ isOpen, onClose, triggerRef }: SidebarProps) {
                             onMouseLeave={() => setNavigationTooltip(null)}
                             onFocus={event => showTooltip(event.currentTarget, item.label)}
                             onBlur={() => setNavigationTooltip(null)}
-                            aria-label={showCompact ? item.label : undefined}
+                            aria-label={item.label}
                             aria-current={isActive ? 'page' : undefined}
-                            aria-describedby={showCompact ? 'sidebar-navigation-tooltip' : undefined}
-                            className={`nv-sidebar-item relative flex h-11 items-center rounded-lg text-body-small font-medium transition-[background-color,color,box-shadow] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/35 ${
-                              showCompact ? 'justify-center px-0' : 'gap-3 px-2.5'
-                            } ${
-                              isActive
-                                ? 'nv-nav-active text-foreground before:absolute before:inset-y-2.5 before:left-0 before:w-0.5 before:rounded-full before:bg-primary'
-                                : 'text-foreground-secondary hover:bg-surface/60 hover:text-foreground'
-                            }`}
+                            aria-describedby={showCompact && navigationTooltip?.label === item.label ? 'sidebar-navigation-tooltip' : undefined}
+                            className="nv-sidebar-item relative flex h-11 items-center gap-3 text-body-small font-medium"
                           >
-                            <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-md transition-[background-color,color,box-shadow] ${
-                              isActive
-                                ? 'bg-surface-elevated text-primary shadow-subtle'
-                                : 'text-foreground-muted group-hover:bg-surface-subtle group-hover:text-foreground-secondary'
-                            }`}>
+                            <span className="nv-sidebar-icon flex h-8 w-8 shrink-0 items-center justify-center rounded-md">
                               <Icon className="h-5 w-5" aria-hidden="true" />
                             </span>
-                            {!showCompact && <span className="nv-sidebar-expanded-only min-w-0 flex-1 truncate">{item.label}</span>}
-                            {!showCompact && item.isOperator && (
+                            <span className="nv-sidebar-label min-w-0 flex-1 truncate" aria-hidden={showCompact}>{item.label}</span>
+                            {item.isOperator && (
                               <span className="nv-sidebar-expanded-only rounded-sm bg-primary-subtle px-1.5 py-0.5 text-[0.5625rem] font-bold uppercase tracking-wide text-primary">Admin</span>
                             )}
                           </Link>
@@ -359,7 +401,7 @@ export function Sidebar({ isOpen, onClose, triggerRef }: SidebarProps) {
           </div>
         </nav>
 
-        <div id="nvhub-sidebar-account" className="shrink-0 border-t border-border/80 bg-shell-sidebar p-3">
+        <div id="nvhub-sidebar-account" className="shrink-0 border-t border-border/60 p-3">
           <AccountMenu
             name={displayUserName}
             role={displayUserRole}
@@ -375,8 +417,8 @@ export function Sidebar({ isOpen, onClose, triggerRef }: SidebarProps) {
         <div
           id="sidebar-navigation-tooltip"
           role="tooltip"
-          className="pointer-events-none fixed left-20 z-[70] -translate-y-1/2 rounded-md border border-border-strong/70 bg-surface-elevated px-2.5 py-1.5 text-label font-medium text-foreground shadow-elevated"
-          style={{ top: navigationTooltip.top }}
+          className="pointer-events-none fixed z-[70] -translate-y-1/2 rounded-md border border-border-strong/70 bg-surface-elevated px-2.5 py-1.5 text-label font-medium text-foreground shadow-elevated"
+          style={{ top: navigationTooltip.top, left: navigationTooltip.left }}
         >
           {navigationTooltip.label}
         </div>,

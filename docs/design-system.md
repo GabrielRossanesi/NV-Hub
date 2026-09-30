@@ -143,10 +143,11 @@ O shell preserva o conteúdo como `children` server-renderizado. A shell client-
 - Sidebar expandida: `256px`.
 - Sidebar compacta: `72px`.
 - Header da Sidebar e Topbar: `68px`.
-- O controle de colapso fica na Topbar, alinhado ao contexto da página.
+- O controle de colapso fica no cabeçalho da Sidebar. No modo compacto, aparece sobre a marca em hover e foco; em dispositivos sem hover, permanece visível.
 - `AppContentContainer` é o boundary oficial de largura e gutters para Topbar e conteúdo.
 - A área interna do shell pode crescer até `1960px`, incluindo os gutters; páginas não devem adicionar um segundo max-width estrutural.
 - O estado expandido/compacto permanece no Zustand existente.
+- Em desktop, Sidebar e conteúdo formam uma composição contínua com margem externa de `12px` e cantos arredondados apenas nas extremidades.
 
 ### ContentContainer
 
@@ -171,11 +172,13 @@ O shell preserva o conteúdo como `children` server-renderizado. A shell client-
 
 - Ordem estrutural: marca, workspace, navegação rolável e conta fixa no rodapé.
 - Agrupar módulos por domínio real: Comercial, Operações, Gestão e Administração.
-- Estado ativo combina trilho NV de `2px` com glow mínimo, superfície em gradiente semântico, texto forte e icon well elevado.
+- A Sidebar desktop usa uma superfície neutra translúcida com blur estático de `16px`, como exceção restrita à navegação estrutural.
+- Estado ativo usa uma superfície contínua com o canvas, curvas côncavas na borda direita, texto forte e icon well dourado. Um único indicador desliza entre os módulos por transform; `ResizeObserver` mantém o encaixe ao recolher, redimensionar ou filtrar itens.
 - Modo compacto mantém marca, workspace, ícones, indicador ativo, tooltips acessíveis e avatar da conta.
 - Itens continuam filtrados por permissões e feature flags.
 - O menu mobile ignora a preferência compacta e sempre abre expandido.
 - No mobile, usar off-canvas com backdrop, body lock, foco inicial no botão fechar, focus trap, Escape e retorno de foco ao trigger.
+- A navegação rola independentemente do conteúdo; os menus de conta e workspace ficam fora da área rolável, sem recorte no modo compacto.
 
 ### NavigationItem
 
@@ -208,7 +211,7 @@ O shell preserva o conteúdo como `children` server-renderizado. A shell client-
 - Mostra o contexto da rota atual.
 - Contém somente controles globais reais.
 - Não simular busca ou notificações sem comportamento implementado.
-- Complementa a Sidebar com controle de colapso, contexto da página, workspace atual e tema.
+- Complementa a Sidebar com contexto da página, workspace atual, tema e abertura do menu móvel.
 - Topbar e conteúdo usam o mesmo `AppContentContainer`; o conector estrutural central ocupa o espaço wide sem simular funcionalidade.
 - Não repetir logout: essa ação pertence ao AccountMenu.
 - No mobile, o trigger informa `aria-expanded` e controla o off-canvas por `aria-controls`.
@@ -334,7 +337,7 @@ Usar transições rápidas apenas para hover, foco, abertura e feedback. O App S
 - Hex, RGB, shadow ou radius arbitrário quando existe token.
 - Cards dentro de cards.
 - Gradiente sem função informacional.
-- Glassmorphism, blur ou sombra pesada em superfícies comuns.
+- Glassmorphism, blur ou sombra pesada em superfícies comuns. A translucidez neutra e o blur estático da Sidebar desktop são a única exceção para o App Shell.
 - Ícones grandes em KPIs.
 - Títulos de landing page em telas operacionais.
 - Badge saturado ocupando área grande.

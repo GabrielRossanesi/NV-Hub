@@ -64,11 +64,11 @@ export default function DashboardClientLayout({
 
   return (
     <DatabaseTenantContextProvider context={initialTenantContext}>
-      <div className="relative isolate flex h-dvh w-full overflow-hidden bg-background text-foreground">
-        <AppShellAtmosphere />
+      <div className="nv-app-shell relative isolate flex h-dvh w-full overflow-hidden bg-background text-foreground">
         <Sidebar isOpen={sidebarOpen} onClose={closeMobileSidebar} triggerRef={menuButtonRef} />
 
-        <div className="relative z-10 flex min-w-0 flex-1 flex-col overflow-hidden">
+        <div className="nv-app-workspace relative z-10 flex min-w-0 flex-1 flex-col overflow-hidden">
+          <AppShellAtmosphere />
           <Topbar
             onMenuClick={openMobileSidebar}
             isMobileMenuOpen={sidebarOpen}
