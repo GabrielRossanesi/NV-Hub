@@ -173,14 +173,22 @@ export function Sidebar({ isOpen, onClose, triggerRef }: SidebarProps) {
   };
 
   useEffect(() => {
+    if (!hasMounted) return;
+    // The bootstrap handles the first paint; the store owns subsequent updates.
+    document.documentElement.dataset.sidebarCollapsed = String(storedSidebarCollapsed);
+  }, [hasMounted, storedSidebarCollapsed]);
+
+  useEffect(() => {
     if (!isOpen || isDesktop) return;
 
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
-    requestAnimationFrame(() => mobileCloseRef.current?.focus());
+    const focusFrame = requestAnimationFrame(() => mobileCloseRef.current?.focus());
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
+        // Let an open submenu consume Escape before dismissing the drawer.
+        if (event.defaultPrevented || panelRef.current?.querySelector('[role="menu"]')) return;
         event.preventDefault();
         closeMobileNavigation();
         return;
@@ -207,6 +215,7 @@ export function Sidebar({ isOpen, onClose, triggerRef }: SidebarProps) {
 
     document.addEventListener('keydown', handleKeyDown);
     return () => {
+      cancelAnimationFrame(focusFrame);
       document.body.style.overflow = previousOverflow;
       document.removeEventListener('keydown', handleKeyDown);
     };
@@ -313,6 +322,8 @@ export function Sidebar({ isOpen, onClose, triggerRef }: SidebarProps) {
             href="/dashboard"
             onClick={closeMobileNavigation}
             aria-label="Ir para o Dashboard"
+            aria-hidden={showCompact}
+            tabIndex={showCompact ? -1 : undefined}
             className="min-w-0 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
           >
             <LogoSidebar />

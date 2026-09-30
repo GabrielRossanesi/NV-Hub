@@ -143,10 +143,10 @@ O shell preserva o conteúdo como `children` server-renderizado. A shell client-
 - Sidebar expandida: `256px`.
 - Sidebar compacta: `72px`.
 - Header da Sidebar e Topbar: `68px`.
-- O controle de colapso fica no cabeçalho da Sidebar. No modo compacto, aparece sobre a marca em hover e foco; em dispositivos sem hover, permanece visível.
+- O controle de colapso fica no cabeçalho da Sidebar. No modo compacto, aparece sobre a marca em hover e foco; em dispositivos sem hover, permanece visível. Toda a área da marca deve expandir já no primeiro clique/toque, sem depender de hover; o link para o Dashboard sai da ordem de foco enquanto estiver coberto pelo controle.
 - `AppContentContainer` é o boundary oficial de largura e gutters para Topbar e conteúdo.
 - A área interna do shell pode crescer até `1960px`, incluindo os gutters; páginas não devem adicionar um segundo max-width estrutural.
-- O estado expandido/compacto permanece no Zustand existente.
+- O estado expandido/compacto permanece no Zustand existente, sincronizado com o atributo visual aplicado pelo bootstrap após a hidratação.
 - Em desktop, Sidebar e conteúdo formam uma composição contínua com margem externa de `12px` e cantos arredondados apenas nas extremidades.
 
 ### ContentContainer
@@ -177,7 +177,7 @@ O shell preserva o conteúdo como `children` server-renderizado. A shell client-
 - Modo compacto mantém marca, workspace, ícones, indicador ativo, tooltips acessíveis e avatar da conta.
 - Itens continuam filtrados por permissões e feature flags.
 - O menu mobile ignora a preferência compacta e sempre abre expandido.
-- No mobile, usar off-canvas com backdrop, body lock, foco inicial no botão fechar, focus trap, Escape e retorno de foco ao trigger.
+- No mobile, usar off-canvas com backdrop, body lock, foco inicial no botão fechar, focus trap, Escape e retorno de foco ao trigger. Escape fecha primeiro um submenu de conta/workspace aberto; uma segunda pressão fecha a navegação principal.
 - A navegação rola independentemente do conteúdo; os menus de conta e workspace ficam fora da área rolável, sem recorte no modo compacto.
 
 ### NavigationItem

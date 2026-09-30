@@ -605,10 +605,12 @@ textarea {
     flex: none;
     align-items: center;
     border-radius: var(--nv-radius-lg);
+    pointer-events: none;
   }
 
   html[data-sidebar-collapsed='true'] #nvhub-sidebar-toggle {
     position: absolute;
+    z-index: 1;
     inset: 12px auto auto 13px;
     width: 44px;
     height: 44px;
@@ -617,7 +619,8 @@ textarea {
     background: var(--shell-sidebar);
     color: var(--primary);
     opacity: 0;
-    pointer-events: none;
+    /* The logo area expands immediately, including taps without prior hover. */
+    pointer-events: auto;
     transition: opacity 140ms;
   }
 
