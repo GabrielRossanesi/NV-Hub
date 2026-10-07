@@ -26,6 +26,7 @@ import Card from '../../components/ui/card';
 import StatusBadge from '../../components/ui/status-badge';
 import EmptyState from '../../components/ui/empty-state';
 import DatePicker from '../../components/ui/date-picker';
+import Link from 'next/link';
 import type { Client, Publication } from '../../types';
 import { formatDateBR } from '../../lib/date';
 
@@ -55,6 +56,8 @@ export interface PublicationActionResult {
 }
 
 export interface PublicacoesViewProps {
+  plannerEnabled?: boolean;
+  plannerIntent?: { publicationId?: string; date?: string; create?: boolean };
   initialPublications: Publication[];
   clients: Client[];
   members: { name: string }[];
@@ -171,6 +174,8 @@ export default function PublicacoesView({
   onArchive,
   onRestore,
   onRegenerateLink,
+  plannerIntent,
+  plannerEnabled,
 }: PublicacoesViewProps) {
   // Cópia de trabalho local — semeada com os dados vindos do servidor (DB) ou do
   // store (sandbox). Todas as mutações passam pelos callbacks e atualizam esta lista.
@@ -189,8 +194,9 @@ export default function PublicacoesView({
   const [editingPubId, setEditingPubId] = useState<string | null>(null);
 
   const [searchTerm, setSearchTerm] = useState('');
+  const [focusedPublicationId, setFocusedPublicationId] = useState(plannerIntent?.publicationId || '');
   const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(!!plannerIntent?.create);
 
   // Form States
   const [selectedClientId, setSelectedClientId] = useState('');
@@ -206,7 +212,7 @@ export default function PublicacoesView({
   const [fileError, setFileError] = useState<string | null>(null);
 
   const [caption, setCaption] = useState('');
-  const [scheduledDate, setScheduledDate] = useState('');
+  const [scheduledDate, setScheduledDate] = useState(plannerIntent?.date || '');
   const [responsavel, setResponsavel] = useState(members[0]?.name || '');
 
   // Preenche um responsável padrão assim que a lista de membros existir, sem
@@ -262,7 +268,7 @@ export default function PublicacoesView({
       matchesStatus = pub.status === statusFilter && !pub.archivedAt;
     }
 
-    return matchesSearch && matchesStatus;
+    return matchesSearch && matchesStatus && (!focusedPublicationId || pub.id === focusedPublicationId);
   });
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -502,11 +508,16 @@ export default function PublicacoesView({
         title="Controle de Publicações"
         description="Aprove mídias e artes de campanhas e redes sociais dos clientes."
         actions={
+          <>
+          {plannerEnabled && <Link href="/tarefas" className="inline-flex min-h-10 items-center gap-2 rounded-md px-3 text-sm font-medium text-foreground-secondary transition-colors hover:bg-surface-subtle hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">Abrir planner</Link>}
           <Button onClick={() => setIsModalOpen(true)} className="flex items-center gap-2">
             <Plus className="h-4 w-4" /> Nova Publicação
           </Button>
+          </>
         }
       />
+
+      {focusedPublicationId && <div className="flex flex-wrap items-center justify-between gap-3 rounded-md bg-primary-subtle px-4 py-3"><p className="text-body-small text-foreground-secondary">Publicação selecionada no planner. Use “Editar” para ajustar os dados.</p><Button variant="ghost" onClick={() => setFocusedPublicationId('')}>Ver todas as publicações</Button></div>}
 
       {/* Filters */}
       <div className="flex flex-col md:flex-row items-center gap-4 justify-between bg-card p-4 rounded-xl border border-border/80 shadow-sm">

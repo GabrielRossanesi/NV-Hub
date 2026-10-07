@@ -445,7 +445,7 @@ export default function ClientesPageClient({
               ))}
             </div>
             {hasActiveFilters && (
-              <Button type="button" variant="ghost" size="sm" className="h-7 shrink-0 gap-1.5 px-2" onClick={clearFilters}>
+              <Button type="button" variant="ghost" size="sm" aria-label="Limpar filtros" className="h-7 shrink-0 gap-1.5 px-2" onClick={clearFilters}>
                 <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
                 <span className="hidden sm:inline">Limpar filtros</span>
               </Button>
@@ -556,7 +556,7 @@ export default function ClientesPageClient({
               </Table>
             </div>
 
-            <div className="overflow-hidden rounded-lg border border-border bg-surface shadow-subtle lg:hidden">
+            <div className="nv-client-mobile-list overflow-hidden rounded-lg border border-border bg-surface shadow-subtle lg:hidden">
               <ul className="divide-y divide-border" aria-label="Clientes encontrados">
                 {filteredClients.map((client) => (
                   <li key={client.id} className="px-4 py-4 sm:px-5">

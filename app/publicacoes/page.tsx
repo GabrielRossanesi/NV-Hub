@@ -8,15 +8,24 @@ import { getRealPublications } from './actions';
 import PublicacoesPageClient from './PublicacoesPageClient';
 import PublicacoesSandboxClient from './PublicacoesSandboxClient';
 import { measureServerTiming } from '../../lib/performance';
+import { plannerDate } from '../../lib/planner';
+import { getCurrentDatabaseTenantContext } from '../../lib/tenant-context-actions';
 
-export default async function PublicacoesPage() {
+export default async function PublicacoesPage({ searchParams }: { searchParams: Promise<{ publicacao?: string | string[]; data?: string | string[]; nova?: string | string[] }> }) {
+  const params = await searchParams;
+  const plannerIntent = {
+    publicationId: typeof params.publicacao === 'string' ? params.publicacao : undefined,
+    date: typeof params.data === 'string' ? plannerDate(params.data) : undefined,
+    create: params.nova === '1',
+  };
   if (!isDatabaseDataMode) {
     // Demo: dados vêm do store Zustand no cliente.
-    return <PublicacoesSandboxClient />;
+    return <PublicacoesSandboxClient plannerIntent={plannerIntent} />;
   }
 
   // Produção: uma única resolução de sessão/tenant (memoizada) alimenta as três
   // buscas em paralelo, entregues como props prontas ao componente cliente.
+  const context = await getCurrentDatabaseTenantContext();
   const [clients, members, publications] = await measureServerTiming(
     'publications/data-total',
     () => Promise.all([
@@ -28,6 +37,8 @@ export default async function PublicacoesPage() {
 
   return (
     <PublicacoesPageClient
+      plannerIntent={plannerIntent}
+      plannerEnabled={context?.features.tasks === true}
       initialClients={clients}
       initialMembers={members}
       initialPublications={publications}

@@ -532,7 +532,7 @@ export default function LeadsPage() {
 
       {/* 1. Kanban View */}
       {viewMode === 'kanban' && (
-        <div className="overflow-x-auto pb-4 -mx-4 px-4 lg:-mx-6 lg:px-6">
+        <div className="nv-lead-board overflow-x-auto pb-4 -mx-4 px-4 lg:-mx-6 lg:px-6">
           <div className="flex gap-4 min-w-[1400px]">
             {([
               { id: 'new', title: 'Novo' },

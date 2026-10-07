@@ -359,7 +359,7 @@ export default function DashboardPageClient({
             title="Leitura rápida da operação"
             description="Indicadores compactos para localizar o próximo ponto de atenção."
           />
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4 2xl:gap-4">
+          <div className="nv-priority-metrics grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4 2xl:gap-4">
             {priorityMetrics.map(metric => <MetricCard key={metric.title} {...metric} />)}
           </div>
         </section>

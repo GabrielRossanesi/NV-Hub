@@ -1,0 +1,545 @@
+/* Mobile overrides only. Desktop keeps the original utilities and composition. */
+@media (width < 1024px) {
+  .nv-app-shell {
+    --section-gap: 1.5rem;
+    --page-padding: 1rem;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .nv-app-shell .app-content-container {
+    padding-left: max(var(--page-padding), env(safe-area-inset-left));
+    padding-right: max(var(--page-padding), env(safe-area-inset-right));
+  }
+
+  .nv-app-shell #main-content {
+    min-height: 0;
+    overscroll-behavior-y: contain;
+    scroll-padding-block: 1rem;
+  }
+
+  .nv-app-shell #main-content > .app-content-container {
+    padding-bottom: max(1.5rem, env(safe-area-inset-bottom));
+  }
+
+  .nv-app-workspace > .app-shell-atmosphere {
+    opacity: 0.3;
+  }
+
+  .nv-topbar {
+    height: calc(3.75rem + env(safe-area-inset-top));
+    padding-top: env(safe-area-inset-top);
+  }
+
+  .nv-topbar .text-body-small {
+    font-size: 0.9375rem;
+  }
+
+  .nv-app-shell button:not([role='switch']),
+  .nv-app-shell .nv-button,
+  .nv-modal-dialog .nv-button {
+    min-height: 44px;
+    touch-action: manipulation;
+  }
+
+  .nv-app-shell button:not([role='switch']) {
+    font-size: 0.8125rem;
+  }
+
+  .nv-app-shell .nv-icon-button,
+  .nv-app-shell button:has(> svg:only-child),
+  .nv-modal-dialog .nv-icon-button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .nv-app-shell :is(input:not([type='checkbox']):not([type='radio']):not([type='hidden']), select, textarea),
+  .nv-modal-dialog :is(input:not([type='checkbox']):not([type='radio']):not([type='hidden']), select, textarea) {
+    min-height: 48px;
+    min-width: 0;
+    font-size: 16px;
+  }
+
+  .nv-app-shell :is(input[type='checkbox'], input[type='radio']) {
+    min-width: 20px;
+    min-height: 20px;
+  }
+
+  .nv-app-shell .nv-button:not(.nv-icon-button) {
+    font-size: 0.8125rem;
+  }
+
+  .nv-app-shell a:has(> svg):not(.nv-sidebar-item) {
+    min-height: 44px;
+    touch-action: manipulation;
+  }
+
+  #nvhub-sidebar {
+    width: min(20rem, calc(100vw - 3rem));
+    height: 100dvh;
+    border-right: 1px solid var(--border);
+    border-radius: 0 1rem 1rem 0;
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .nv-sidebar-header {
+    border-radius: 0;
+    padding-inline: 1rem;
+  }
+
+  .nv-sidebar-navigation {
+    padding: 0.5rem 0.75rem 1rem;
+  }
+
+  .nv-sidebar-item {
+    min-height: 48px;
+    padding-inline: 0.5rem;
+    border-radius: var(--nv-radius-lg);
+    font-size: 0.875rem;
+  }
+
+  .nv-sidebar-item::before,
+  .nv-sidebar-item[aria-current='page']::before,
+  .nv-sidebar-active-indicator {
+    inset-inline: 0;
+    border-radius: var(--nv-radius-lg);
+  }
+
+  .nv-sidebar-active-indicator,
+  .nv-sidebar-item[aria-current='page']::before {
+    background: var(--primary-subtle);
+  }
+
+  .nv-sidebar-active-indicator::before,
+  .nv-sidebar-active-indicator::after {
+    display: none;
+  }
+
+  .nv-sidebar-item[aria-current='page'] {
+    color: var(--primary);
+  }
+
+  .nv-sidebar-group-label {
+    height: 28px;
+    font-size: 0.6875rem;
+  }
+
+  .nv-sidebar-navigation-group + .nv-sidebar-navigation-group {
+    margin-top: 12px;
+  }
+
+  .nv-page-header {
+    gap: 1rem;
+    padding-bottom: 1rem;
+  }
+
+  .nv-page-header h1 {
+    font-size: 1.5rem;
+    line-height: 1.2;
+    overflow-wrap: anywhere;
+  }
+
+  .nv-page-header p {
+    line-height: 1.55;
+  }
+
+  .nv-table-filters {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .nv-table-filters > * {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .nv-tabs-list,
+  .nv-mobile-filter-strip,
+  .nv-financial-tabs {
+    min-width: 0;
+    max-width: 100%;
+    overscroll-behavior-x: contain;
+    scroll-padding-inline: 0.5rem;
+    scrollbar-width: thin;
+  }
+
+  .nv-tab-trigger {
+    flex-shrink: 0;
+    min-height: 48px;
+    padding-inline: 0.875rem;
+  }
+
+  .nv-financial-tabs {
+    margin-inline: 0;
+    padding-inline: 0;
+  }
+
+  .nv-client-mobile-list {
+    overflow: visible;
+  }
+
+  .nv-client-mobile-list :is(h3, dd) {
+    overflow-wrap: anywhere;
+    white-space: normal;
+  }
+
+  .nv-client-mobile-list h3 {
+    font-size: 0.9375rem;
+  }
+
+  .nv-disclosure-content[data-expanded='false'] {
+    display: none;
+  }
+
+  .nv-mobile-disclosure > h3 {
+    margin-block: 0;
+  }
+
+  .nv-disclosure-trigger {
+    padding: 0;
+  }
+
+  .nv-disclosure-chevron {
+    transition: transform 180ms ease;
+  }
+
+  .nv-disclosure-trigger[aria-expanded='true'] .nv-disclosure-chevron {
+    transform: rotate(180deg);
+  }
+
+  .nv-task-layout {
+    gap: 0.75rem;
+  }
+
+  .nv-task-context {
+    display: contents;
+  }
+
+  .nv-task-context > * {
+    margin-block: 0;
+  }
+
+  .nv-task-productivity {
+    order: 1;
+  }
+
+  .nv-task-workspace {
+    min-width: 0;
+  }
+
+  .nv-task-workspace .p-0,
+  .nv-app-shell .p-0:has(.nv-table-container) {
+    padding: 0;
+  }
+
+  .nv-task-mobile-list > div > .flex {
+    flex-wrap: wrap;
+    row-gap: 0.5rem;
+  }
+
+  .nv-task-mobile-list > div > .flex > div:first-child {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .nv-task-mobile-list .text-success-foreground {
+    color: var(--success);
+  }
+
+  .nv-task-mobile-list .text-warning-foreground {
+    color: var(--warning);
+  }
+
+  .nv-task-mobile-list .text-danger-foreground {
+    color: var(--danger);
+  }
+
+  .nv-lead-board {
+    scroll-snap-type: x proximity;
+    scroll-padding-inline: 1rem;
+    overscroll-behavior-x: contain;
+  }
+
+  .nv-lead-board > div {
+    min-width: 0;
+    width: max-content;
+    gap: 0.75rem;
+  }
+
+  .nv-lead-board > div > div {
+    flex: none;
+    width: min(19rem, calc(100vw - 3.5rem));
+    min-width: 0;
+    max-height: 70dvh;
+    scroll-snap-align: start;
+  }
+
+  .nv-lead-board h4 {
+    font-size: 0.875rem;
+  }
+
+  .nv-modal-overlay {
+    padding: 1rem;
+  }
+
+  .nv-modal-dialog {
+    display: flex;
+    flex-direction: column;
+    max-height: calc(100dvh - 2rem);
+    padding: 1.25rem;
+  }
+
+  .nv-modal-header {
+    flex-shrink: 0;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+    padding-bottom: 1rem;
+  }
+
+  .nv-modal-header > div {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .nv-modal-content {
+    min-height: 0;
+    max-height: none;
+    overscroll-behavior-y: contain;
+    scroll-padding-block: 1rem;
+  }
+
+  .nv-modal-content form > .flex:last-child {
+    position: sticky;
+    bottom: 0;
+    z-index: 1;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 1rem;
+    padding-block: 0.75rem;
+    background: var(--surface-elevated);
+  }
+
+  .nv-modal-content form > .flex:last-child > .nv-button {
+    flex: 1;
+  }
+
+  .nv-mobile-actions .nv-action-menu {
+    position: absolute;
+    inset: auto max(1rem, env(safe-area-inset-right)) max(1rem, env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left));
+    width: auto;
+    max-height: 70dvh;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 0.5rem;
+    animation: nv-mobile-sheet-enter 180ms ease-out;
+  }
+
+  .nv-mobile-actions [role='menuitem'] {
+    min-height: 48px;
+    border-radius: var(--nv-radius-md);
+    font-size: 0.875rem;
+    touch-action: manipulation;
+  }
+}
+
+@media (width < 768px) {
+  .nv-task-layout {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+  }
+
+  .nv-task-context > .flex {
+    align-self: stretch;
+    align-items: center;
+    box-shadow: none;
+  }
+
+  .nv-task-context > .flex button svg {
+    display: none;
+  }
+
+  .nv-task-context > .nv-mobile-disclosure {
+    min-width: 0;
+    padding: 0.75rem;
+    box-shadow: none;
+  }
+
+  .nv-task-context > .nv-mobile-disclosure:has([aria-expanded='true']) {
+    grid-column: 1 / -1;
+  }
+
+  .nv-task-workspace,
+  .nv-task-productivity {
+    grid-column: 1 / -1;
+  }
+
+  .nv-tasks-page > *:not(:last-child) {
+    margin-bottom: 1rem;
+  }
+
+  .nv-page-actions {
+    width: 100%;
+    gap: 0.5rem;
+  }
+
+  .nv-page-actions > .nv-button {
+    flex: 1;
+  }
+
+  .nv-priority-metrics,
+  .nv-task-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.625rem;
+  }
+
+  .nv-task-metrics {
+    gap: 0;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    border-radius: var(--nv-radius-lg);
+    background: var(--surface);
+  }
+
+  .nv-priority-metrics .nv-metric {
+    min-height: 7rem;
+    padding: 0.875rem;
+    box-shadow: none;
+  }
+
+  .nv-metric .text-caption {
+    white-space: normal;
+    line-height: 1.4;
+  }
+
+  .nv-task-metrics > div {
+    min-width: 0;
+    gap: 0.625rem;
+    padding: 0.875rem;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .nv-task-metrics > div:nth-child(odd) {
+    border-right: 1px solid var(--border);
+  }
+
+  .nv-task-metrics > div:nth-child(-n + 2) {
+    border-bottom: 1px solid var(--border);
+  }
+
+  .nv-task-metrics > div > div:first-child {
+    height: 1.75rem;
+    width: 1.75rem;
+    border-radius: 0.5rem;
+  }
+
+  .nv-task-metrics > div > div:first-child svg {
+    height: 1rem;
+    width: 1rem;
+  }
+
+  .nv-task-metrics .text-xs {
+    font-size: 0.6875rem;
+    line-height: 1.4;
+  }
+
+  .nv-modal-overlay {
+    align-items: flex-end;
+    padding: 0;
+  }
+
+  .nv-modal-dialog {
+    max-width: 100%;
+    max-height: calc(100dvh - max(1rem, env(safe-area-inset-top)));
+    border-radius: 1.25rem 1.25rem 0 0;
+    padding: 1rem max(1rem, env(safe-area-inset-right)) max(1rem, env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left));
+    animation: nv-mobile-sheet-enter 180ms ease-out;
+  }
+
+  .nv-modal-dialog::before {
+    content: '';
+    width: 2rem;
+    height: 3px;
+    flex-shrink: 0;
+    margin: 0 auto 0.875rem;
+    border-radius: 999px;
+    background: var(--border-strong);
+  }
+
+  .nv-modal-content form > .flex:last-child {
+    padding-bottom: 0.25rem;
+  }
+
+  .nv-table-container {
+    overflow: visible;
+  }
+
+  .nv-table-mobile {
+    display: block;
+    min-width: 0;
+  }
+
+  .nv-table-mobile > thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .nv-table-mobile > tbody {
+    display: block;
+  }
+
+  .nv-table-mobile > tbody > tr {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.875rem;
+    padding: 1rem;
+  }
+
+  .nv-table-mobile > tbody > tr > td {
+    display: block;
+    min-width: 0;
+    padding: 0;
+    text-align: left;
+    font-size: 0.8125rem;
+    overflow-wrap: anywhere;
+  }
+
+  .nv-table-mobile > tbody > tr > td::before {
+    content: attr(data-label);
+    display: block;
+    margin-bottom: 0.375rem;
+    font-size: 0.6875rem;
+    line-height: 1.4;
+    font-weight: 500;
+    color: var(--foreground-muted);
+  }
+
+  .nv-table-mobile > tbody > tr > td:first-child,
+  .nv-table-mobile > tbody > tr > td:last-child,
+  .nv-table-mobile > tbody > tr > td[colspan] {
+    grid-column: 1 / -1;
+  }
+
+  .nv-table-mobile > tbody > tr > td:last-child > .flex {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+}
+
+@media (width < 1024px) {
+  @keyframes nv-mobile-sheet-enter {
+    from { transform: translateY(1rem); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }
+}
+
+@media (width < 1024px) and (prefers-reduced-motion: reduce) {
+  .nv-modal-dialog { animation: none; }
+  .nv-disclosure-chevron { transition: none; }
+}

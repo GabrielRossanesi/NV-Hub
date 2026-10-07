@@ -20,14 +20,19 @@ import Input from './input';
 import Textarea from './textarea';
 import Select from './select';
 import DatePicker from './date-picker';
+import { formatDateBR } from '../../lib/date';
+import { plannerDate, dateFromKey } from '../../lib/planner';
 
 interface TaskCalendarProps {
+  detailTaskId?: string;
+  onDetailClose?: () => void;
+  allowUnassigned?: boolean;
   tasks: TeamTask[];
-  updateTaskStatus: (taskId: string, status: TaskStatus) => void;
+  updateTaskStatus: (taskId: string, status: TaskStatus) => void | Promise<boolean | void>;
   clients?: { id: string; companyName: string }[];
   teamMembers?: { id: string; name: string }[];
-  updateTask?: (taskId: string, updates: Partial<TeamTask>) => void;
-  addTaskNote?: (taskId: string, content: string) => void;
+  updateTask?: (taskId: string, updates: Partial<TeamTask>) => void | Promise<boolean | void>;
+  addTaskNote?: (taskId: string, content: string) => void | Promise<boolean | void>;
 }
 
 const MONTH_NAMES = [
@@ -54,13 +59,15 @@ export default function TaskCalendar(props: TaskCalendarProps) {
   const currentYear = currentDate.getFullYear();
 
   // Main Modal State
-  const [isMainModalOpen, setIsMainModalOpen] = useState(false);
-  const [modalView, setModalView] = useState<'day-tasks' | 'task-detail' | 'task-edit'>('day-tasks');
+  const [isMainModalOpen, setIsMainModalOpen] = useState(!!props.detailTaskId);
+  const [modalView, setModalView] = useState<'day-tasks' | 'task-detail' | 'task-edit'>(props.detailTaskId ? 'task-detail' : 'day-tasks');
   const [activeDateStr, setActiveDateStr] = useState<string | null>(null);
-  const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
+  const [activeTaskId, setActiveTaskId] = useState<string | null>(props.detailTaskId ?? null);
 
   // Notes state
   const [noteContent, setNoteContent] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+  const [mutationError, setMutationError] = useState('');
 
   // Edit Form States
   const [editTitle, setEditTitle] = useState('');
@@ -183,7 +190,7 @@ export default function TaskCalendar(props: TaskCalendarProps) {
   const mobileFilteredTasks = useMemo(() => {
     return tasks
       .filter(task => {
-        const taskDate = new Date(task.dueDate);
+        const taskDate = dateFromKey(plannerDate(task.dueDate));
         return taskDate.getMonth() === currentMonth && taskDate.getFullYear() === currentYear;
       })
       .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
@@ -200,7 +207,7 @@ export default function TaskCalendar(props: TaskCalendarProps) {
       } else {
         groups.push({
           dateString: dateStr,
-          date: new Date(task.dueDate),
+          date: dateFromKey(plannerDate(task.dueDate)),
           items: [task]
         });
       }
@@ -231,7 +238,7 @@ export default function TaskCalendar(props: TaskCalendarProps) {
   // Styling helper for task cards inside grid
   const getTaskStyle = (task: TeamTask) => {
     const isCompleted = task.status === 'completed';
-    const isOverdue = !isCompleted && (task.status === 'overdue' || new Date(task.dueDate) < new Date(new Date().setHours(0,0,0,0)));
+    const isOverdue = !['completed', 'cancelled', 'archived'].includes(task.status) && (task.status === 'overdue' || !!plannerDate(task.dueDate) && plannerDate(task.dueDate) < todayStr);
 
     if (isCompleted) {
       return 'border-l-4 border-success bg-success/5 text-success-foreground/75 opacity-75 line-through decoration-success/30';
@@ -271,39 +278,55 @@ export default function TaskCalendar(props: TaskCalendarProps) {
     setIsMainModalOpen(true);
   };
 
-  const handleAddNote = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!noteContent.trim() || !activeTaskId) return;
-    addTaskNote(activeTaskId, noteContent.trim());
-    setNoteContent('');
+  const runAction = async (action: () => void | Promise<boolean | void>) => {
+    if (isSaving) return false;
+    setIsSaving(true);
+    setMutationError('');
+    try {
+      const result = await action();
+      if (result === false) setMutationError('Não foi possível salvar. Tente novamente.');
+      return result !== false;
+    } catch (error) {
+      setMutationError(error instanceof Error ? error.message : 'Não foi possível salvar. Tente novamente.');
+      return false;
+    } finally {
+      setIsSaving(false);
+    }
   };
 
-  const handleSaveEdit = (e: React.FormEvent) => {
+  const handleAddNote = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!activeTaskId || !editTitle.trim() || !editClientId || !editDueDate) {
+    if (!noteContent.trim() || !activeTaskId) return;
+    if (await runAction(() => addTaskNote(activeTaskId, noteContent.trim()))) setNoteContent('');
+  };
+
+  const handleSaveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!activeTaskId || !editTitle.trim() || (!props.allowUnassigned && (!editClientId || !editDueDate))) {
       alert('Preencha todos os campos obrigatórios.');
       return;
     }
 
     const client = clients.find(c => c.id === editClientId);
-    if (!client) return;
+    if (editClientId && !client) return;
 
-    updateTask(activeTaskId, {
+    const saved = await runAction(() => updateTask(activeTaskId, {
       title: editTitle.trim(),
       clientId: editClientId,
-      clientName: client.companyName,
+      clientName: client?.companyName || '',
       responsibleUser: editResponsible,
       dueDate: editDueDate,
       priority: editPriority,
       status: editStatus,
       description: editDesc.trim()
-    });
+    }));
 
-    setModalView('task-detail');
+    if (saved) setModalView('task-detail');
   };
 
   return (
     <div className="space-y-4">
+      {!props.detailTaskId && <>
       {/* Calendar Navigation Header */}
       <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-card p-4 rounded-xl border border-border/80 shadow-sm">
         <div className="flex items-center gap-1.5">
@@ -469,7 +492,7 @@ export default function TaskCalendar(props: TaskCalendarProps) {
                   <div className="space-y-2">
                     {group.items.map(task => {
                       const isCompleted = task.status === 'completed';
-                      const isOverdue = !isCompleted && (task.status === 'overdue' || new Date(task.dueDate) < new Date(new Date().setHours(0,0,0,0)));
+                      const isOverdue = !['completed', 'cancelled', 'archived'].includes(task.status) && (task.status === 'overdue' || !!plannerDate(task.dueDate) && plannerDate(task.dueDate) < todayStr);
 
                       return (
                         <div
@@ -521,11 +544,13 @@ export default function TaskCalendar(props: TaskCalendarProps) {
         )}
       </div>
 
+      </>}
       {/* Main Unified Modal representing the flow: Day Tasks -> Detail -> Edit */}
       <Modal
         isOpen={isMainModalOpen}
         onClose={() => {
           setIsMainModalOpen(false);
+          props.onDetailClose?.();
           setActiveTaskId(null);
           setActiveDateStr(null);
         }}
@@ -545,6 +570,7 @@ export default function TaskCalendar(props: TaskCalendarProps) {
         }
         size="md"
       >
+        {mutationError && <p role="alert" className="mb-4 rounded-md bg-danger-subtle p-3 text-body-small text-danger">{mutationError}</p>}
         {/* Navigation Breadcrumb */}
         {modalView !== 'day-tasks' && activeDateStr && (
           <button
@@ -575,7 +601,7 @@ export default function TaskCalendar(props: TaskCalendarProps) {
               <div className="space-y-2.5 max-h-[50vh] overflow-y-auto pr-1 modal-scrollbar">
                 {dayTasks.map(task => {
                   const isCompleted = task.status === 'completed';
-                  const isOverdue = !isCompleted && (task.status === 'overdue' || new Date(task.dueDate) < new Date(new Date().setHours(0,0,0,0)));
+                  const isOverdue = !['completed', 'cancelled', 'archived'].includes(task.status) && (task.status === 'overdue' || !!plannerDate(task.dueDate) && plannerDate(task.dueDate) < todayStr);
 
                   return (
                     <div 
@@ -654,19 +680,19 @@ export default function TaskCalendar(props: TaskCalendarProps) {
               <div className="space-y-1">
                 <span className="text-[10px] text-muted-foreground block font-medium">Cliente Vinculado</span>
                 <span className="font-semibold text-foreground flex items-center gap-1">
-                  <Briefcase className="h-3.5 w-3.5 text-primary/80" /> {activeTask.clientName}
+                  <Briefcase className="h-3.5 w-3.5 text-primary/80" /> {activeTask.clientName || 'Sem cliente'}
                 </span>
               </div>
               <div className="space-y-1">
                 <span className="text-[10px] text-muted-foreground block font-medium">Responsável na Equipe</span>
                 <span className="font-semibold text-foreground flex items-center gap-1">
-                  <User className="h-3.5 w-3.5 text-primary/80" /> {activeTask.responsibleUser}
+                  <User className="h-3.5 w-3.5 text-primary/80" /> {activeTask.responsibleUser || 'Sem responsável'}
                 </span>
               </div>
               <div className="space-y-1">
                 <span className="text-[10px] text-muted-foreground block font-medium">Prazo de Entrega</span>
                 <span className="font-semibold text-foreground flex items-center gap-1">
-                  <Clock className="h-3.5 w-3.5 text-primary/80" /> {new Date(activeTask.dueDate).toLocaleDateString('pt-BR')}
+                  <Clock className="h-3.5 w-3.5 text-primary/80" /> {formatDateBR(activeTask.dueDate) || 'Sem data'}
                 </span>
               </div>
               <div className="space-y-1">
@@ -679,7 +705,7 @@ export default function TaskCalendar(props: TaskCalendarProps) {
                 <span className="text-[10px] text-muted-foreground block font-medium">Status Atual</span>
                 <div className="flex items-center gap-2 pt-0.5">
                   <StatusBadge type="task" status={activeTask.status} />
-                  {activeTask.status !== 'completed' && new Date(activeTask.dueDate) < new Date(new Date().setHours(0,0,0,0)) && (
+                  {!['completed', 'cancelled', 'archived'].includes(activeTask.status) && !!plannerDate(activeTask.dueDate) && plannerDate(activeTask.dueDate) < todayStr && (
                     <span className="text-[9px] bg-danger/10 text-danger border border-danger/20 font-bold px-2 py-0.5 rounded-full uppercase tracking-wider flex items-center gap-0.5">
                       <AlertTriangle className="h-3 w-3" /> Atrasada
                     </span>
@@ -714,6 +740,7 @@ export default function TaskCalendar(props: TaskCalendarProps) {
 
               <form onSubmit={handleAddNote} className="space-y-2">
                 <Textarea
+                  label="Nova observação"
                   placeholder="Escreva uma observação..."
                   value={noteContent}
                   onChange={(e) => setNoteContent(e.target.value)}
@@ -724,6 +751,7 @@ export default function TaskCalendar(props: TaskCalendarProps) {
                 <div className="flex justify-end">
                   <Button 
                     type="submit" 
+                    isLoading={isSaving}
                     size="sm"
                     className="text-xs h-8"
                   >
@@ -742,8 +770,9 @@ export default function TaskCalendar(props: TaskCalendarProps) {
                     variant="outline"
                     size="sm"
                     onClick={() => {
-                      updateTaskStatus(activeTask.id, 'completed');
+                      void runAction(() => updateTaskStatus(activeTask.id, 'completed'));
                     }}
+                    disabled={isSaving}
                     className="text-xs h-9 border-success/30 hover:bg-success/5 text-success hover:border-success/60 flex items-center gap-1.5 justify-center"
                   >
                     <Check className="h-4 w-4" /> Marcar como Concluída
@@ -754,8 +783,9 @@ export default function TaskCalendar(props: TaskCalendarProps) {
                     variant="outline"
                     size="sm"
                     onClick={() => {
-                      updateTaskStatus(activeTask.id, 'pending');
+                      void runAction(() => updateTaskStatus(activeTask.id, 'pending'));
                     }}
+                    disabled={isSaving}
                     className="text-xs h-9 border-warning/30 hover:bg-warning/5 text-warning hover:border-warning/60 flex items-center gap-1.5 justify-center"
                   >
                     Reabrir Tarefa
@@ -777,6 +807,7 @@ export default function TaskCalendar(props: TaskCalendarProps) {
                     setEditStatus(activeTask.status);
                     setModalView('task-edit');
                   }}
+                  disabled={isSaving}
                   className="text-xs h-9 border-border/60 hover:bg-muted/40 justify-center"
                 >
                   Editar Tarefa
@@ -790,6 +821,7 @@ export default function TaskCalendar(props: TaskCalendarProps) {
                     setModalView('day-tasks');
                   } else {
                     setIsMainModalOpen(false);
+                    props.onDetailClose?.();
                     setActiveTaskId(null);
                     setActiveDateStr(null);
                   }
@@ -816,17 +848,17 @@ export default function TaskCalendar(props: TaskCalendarProps) {
 
             <Select
               label="Cliente Vinculado"
-              options={clients.map(c => ({ value: c.id, label: c.companyName }))}
+              options={[...(props.allowUnassigned ? [{ value: '', label: 'Sem cliente' }] : []), ...clients.map(c => ({ value: c.id, label: c.companyName }))]}
               value={editClientId}
               onChange={(e) => setEditClientId(e.target.value)}
-              required
+              required={!props.allowUnassigned}
               className="text-xs"
             />
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Select
                 label="Responsável"
-                options={teamMembers.map(m => ({ value: m.name, label: m.name }))}
+                options={[{ value: '', label: 'Sem responsável' }, ...teamMembers.map(m => ({ value: m.name, label: m.name }))]}
                 value={editResponsible}
                 onChange={(e) => setEditResponsible(e.target.value)}
                 className="text-xs"
@@ -835,7 +867,7 @@ export default function TaskCalendar(props: TaskCalendarProps) {
                 label="Prazo"
                 value={editDueDate}
                 onChange={(e) => setEditDueDate(e.target.value)}
-                required
+                required={!props.allowUnassigned}
                 className="text-xs"
               />
             </div>
@@ -859,7 +891,9 @@ export default function TaskCalendar(props: TaskCalendarProps) {
                   { value: 'pending', label: 'Pendente' },
                   { value: 'in_progress', label: 'Em Andamento' },
                   { value: 'in_review', label: 'Em Revisão' },
-                  { value: 'completed', label: 'Concluído' }
+                  { value: 'completed', label: 'Concluído' },
+                  { value: 'overdue', label: 'Atrasada' },
+                  { value: 'cancelled', label: 'Cancelada' }
                 ]}
                 value={editStatus}
                 onChange={(e) => setEditStatus(e.target.value as TaskStatus)}
@@ -887,6 +921,7 @@ export default function TaskCalendar(props: TaskCalendarProps) {
               </Button>
               <Button 
                 type="submit" 
+                isLoading={isSaving}
                 size="sm"
                 className="h-9"
               >

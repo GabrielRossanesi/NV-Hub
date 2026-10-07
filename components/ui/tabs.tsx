@@ -38,7 +38,7 @@ export function Tabs({
 
 export function TabsList({ className = '', children }: { className?: string; children: React.ReactNode }) {
   return (
-    <div className={`flex items-center gap-1 border-b border-border mb-6 overflow-x-auto ${className}`}>
+    <div className={`nv-tabs-list flex items-center gap-1 border-b border-border mb-6 overflow-x-auto ${className}`}>
       {children}
     </div>
   );
@@ -53,7 +53,7 @@ export function TabsTrigger({ value, className = '', children }: { value: string
   return (
     <button
       onClick={() => context.onValueChange(value)}
-      className={`px-4 py-2 text-sm font-medium border-b-2 transition-all duration-200 whitespace-nowrap cursor-pointer ${
+      className={`nv-tab-trigger px-4 py-2 text-sm font-medium border-b-2 transition-all duration-200 whitespace-nowrap cursor-pointer ${
         isActive 
           ? 'border-primary text-primary' 
           : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'

@@ -308,24 +308,6 @@ body {
   );
 }
 
-.nv-topbar-connector {
-  position: relative;
-  height: 1px;
-  background: linear-gradient(90deg, var(--border), color-mix(in srgb, var(--border) 36%, transparent) 78%, transparent);
-}
-
-.nv-topbar-connector::after {
-  content: '';
-  position: absolute;
-  top: 50%;
-  right: 22%;
-  width: 3px;
-  height: 3px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--primary) 48%, var(--border));
-  transform: translateY(-50%);
-}
-
 .nv-brand-signal {
   background: linear-gradient(90deg, var(--primary), color-mix(in srgb, var(--primary) 18%, transparent), transparent);
   box-shadow: 0 0 18px color-mix(in srgb, var(--primary) 24%, transparent);

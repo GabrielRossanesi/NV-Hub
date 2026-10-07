@@ -1,0 +1,12 @@
+@keyframes nv-planner-enter {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.nv-planner-reveal {
+  animation: nv-planner-enter 180ms ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nv-planner-reveal { animation: none; }
+}

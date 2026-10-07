@@ -41,7 +41,7 @@ export function Topbar({
   const currentLabel = routeLabels[currentSegment] ?? 'NV Hub';
 
   return (
-    <header className="relative z-30 h-[4.25rem] shrink-0 border-b border-border/80 bg-shell-topbar">
+    <header className="nv-topbar relative z-30 h-[4.25rem] shrink-0 bg-transparent">
       <AppContentContainer className="flex h-full items-center gap-3 lg:gap-4">
         <div className="flex min-w-0 items-center gap-3">
           <IconButton
@@ -64,11 +64,9 @@ export function Topbar({
           </div>
         </div>
 
-        <span className="nv-topbar-connector hidden min-w-10 flex-1 lg:block" aria-hidden="true" />
-
         <div className="ml-auto flex shrink-0 items-center gap-2">
           {workspaceName && (
-            <div className="hidden min-w-0 items-center gap-2.5 border-r border-border pr-3 md:flex">
+            <div className="hidden min-w-0 items-center gap-2.5 pr-3 md:flex">
               <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-border bg-surface-subtle text-foreground-muted">
                 <Building2 className="h-3.5 w-3.5" aria-hidden="true" />
               </span>

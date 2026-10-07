@@ -13,7 +13,7 @@ export const IconButton = React.forwardRef<HTMLButtonElement, IconButtonProps>(
       type={type}
       aria-label={label}
       title={label}
-      className={`h-9 w-9 shrink-0 p-0 ${className}`}
+      className={`nv-icon-button h-9 w-9 shrink-0 p-0! ${className}`}
       {...props}
     >
       {children}

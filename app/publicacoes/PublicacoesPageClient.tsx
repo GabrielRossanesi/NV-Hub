@@ -16,6 +16,8 @@ import {
 import type { Client, Publication } from '../../types';
 
 interface PublicacoesPageClientProps {
+  plannerEnabled?: boolean;
+  plannerIntent?: { publicationId?: string; date?: string; create?: boolean };
   initialClients: Client[];
   initialMembers: { name: string }[];
   initialPublications: Publication[];
@@ -25,9 +27,14 @@ export default function PublicacoesPageClient({
   initialClients,
   initialMembers,
   initialPublications,
+  plannerIntent,
+  plannerEnabled,
 }: PublicacoesPageClientProps) {
   return (
     <PublicacoesView
+      key={`${plannerIntent?.publicationId || ''}:${plannerIntent?.create || false}:${plannerIntent?.date || ''}`}
+      plannerIntent={plannerIntent}
+      plannerEnabled={plannerEnabled}
       initialPublications={initialPublications}
       clients={initialClients}
       members={initialMembers}

@@ -305,6 +305,8 @@ export function Sidebar({ isOpen, onClose, triggerRef }: SidebarProps) {
         id="nvhub-sidebar"
         ref={panelRef}
         aria-label="Navegação principal"
+        role={!isDesktop && isOpen ? 'dialog' : undefined}
+        aria-modal={!isDesktop && isOpen ? true : undefined}
         aria-hidden={!isDesktop && !isOpen}
         inert={!isDesktop && !isOpen}
         className={`nv-glass-sidebar fixed inset-y-0 left-0 z-50 flex w-64 flex-col shadow-elevated lg:relative lg:translate-x-0 lg:shadow-none ${

@@ -29,7 +29,7 @@ Os tokens estão em `app/globals.css` e são expostos ao Tailwind CSS 4 por `@th
 | `surface-subtle` | `#F5F5F7` | `#11141A` | Agrupamentos discretos |
 | `surface-elevated` | `#FFFFFF` | `#1C2028` | Menus e overlays |
 | `shell-sidebar` | `#F8F8FA` | `#0D0F14` | Navegação estrutural |
-| `shell-topbar` | `#FBFBFC` | `#101217` | Barra contextual |
+| `shell-topbar` | `#FBFBFC` | `#101217` | Token legado; Topbar atual usa fundo transparente |
 | `foreground` | `#181A20` | `#F2F1ED` | Texto principal |
 | `foreground-secondary` | `#4B4E58` | `#C9C9C5` | Texto de apoio forte |
 | `foreground-muted` | `#747883` | `#8F929B` | Legendas e metadados |
@@ -212,7 +212,8 @@ O shell preserva o conteúdo como `children` server-renderizado. A shell client-
 - Contém somente controles globais reais.
 - Não simular busca ou notificações sem comportamento implementado.
 - Complementa a Sidebar com contexto da página, workspace atual, tema e abertura do menu móvel.
-- Topbar e conteúdo usam o mesmo `AppContentContainer`; o conector estrutural central ocupa o espaço wide sem simular funcionalidade.
+- Topbar e conteúdo usam o mesmo `AppContentContainer`, com alinhamento contínuo dos gutters.
+- A Topbar usa fundo transparente, sem borda inferior, sombra, blur ou conector decorativo. A atmosfera do workspace aparece continuamente atrás do cabeçalho nos temas claro e escuro.
 - Não repetir logout: essa ação pertence ao AccountMenu.
 - No mobile, o trigger informa `aria-expanded` e controla o off-canvas por `aria-controls`.
 

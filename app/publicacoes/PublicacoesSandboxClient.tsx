@@ -12,11 +12,12 @@ import PublicacoesView, {
 } from './PublicacoesView';
 import type { Publication } from '../../types';
 
-export default function PublicacoesSandboxClient() {
+export default function PublicacoesSandboxClient({ plannerIntent }: { plannerIntent?: { publicationId?: string; date?: string; create?: boolean } }) {
   const {
     publications,
     clients,
     teamMembers,
+    currentFeatures,
     addPublication,
     updatePublication,
     regeneratePublicationApprovalLink,
@@ -93,6 +94,9 @@ export default function PublicacoesSandboxClient() {
 
   return (
     <PublicacoesView
+      key={`${plannerIntent?.publicationId || ''}:${plannerIntent?.create || false}:${plannerIntent?.date || ''}`}
+      plannerIntent={plannerIntent}
+      plannerEnabled={currentFeatures.tasks}
       initialPublications={publications}
       clients={clients}
       members={teamMembers}

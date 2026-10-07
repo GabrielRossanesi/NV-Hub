@@ -80,7 +80,7 @@ export function Modal({ isOpen, onClose, title, description, children, size = 'm
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
+    <div className="nv-modal-overlay fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
       {/* Backdrop */}
       <div 
         className="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-300 ease-out" 
@@ -95,10 +95,10 @@ export function Modal({ isOpen, onClose, title, description, children, size = 'm
         aria-labelledby={titleId}
         aria-describedby={description ? descriptionId : undefined}
         tabIndex={-1}
-        className={`relative w-full ${sizeClasses[size]} transform overflow-hidden rounded-lg border border-border bg-surface-elevated p-6 text-left align-middle shadow-elevated transition-all duration-300 ease-out animate-in fade-in zoom-in-95 slide-in-from-bottom-10`}
+        className={`nv-modal-dialog relative w-full ${sizeClasses[size]} transform overflow-hidden rounded-lg border border-border bg-surface-elevated p-6 text-left align-middle shadow-elevated transition-all duration-300 ease-out animate-in fade-in zoom-in-95 slide-in-from-bottom-10`}
       >
         {/* Header */}
-        <div className="flex items-start justify-between border-b border-border/10 pb-4 mb-4">
+        <div className="nv-modal-header flex items-start justify-between border-b border-border/10 pb-4 mb-4">
           <div>
             <h3 id={titleId} className="text-lg font-semibold leading-6 text-foreground">
               {title}
@@ -115,7 +115,7 @@ export function Modal({ isOpen, onClose, title, description, children, size = 'm
         </div>
 
         {/* Content */}
-        <div className="max-h-[70vh] overflow-y-auto pr-1 modal-scrollbar">
+        <div className="nv-modal-content max-h-[70vh] overflow-y-auto pr-1 modal-scrollbar">
           {children}
         </div>
       </div>

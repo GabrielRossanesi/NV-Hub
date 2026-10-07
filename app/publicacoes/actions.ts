@@ -234,7 +234,7 @@ function mapDbPubToPub(dbPub: PrismaPublication): Publication {
   };
 }
 
-export async function getRealPublications(): Promise<Publication[]> {
+export async function getRealPublications(reportError = false): Promise<Publication[]> {
   if (!isDatabaseDataMode) return [];
 
   try {
@@ -259,7 +259,17 @@ export async function getRealPublications(): Promise<Publication[]> {
     return dbPubs.map(mapDbPubToPub);
   } catch (err) {
     console.error('Error fetching real publications:', err);
+    if (reportError) throw err;
     return [];
+  }
+}
+
+// The planner distinguishes an unavailable source from a genuinely empty agenda.
+export async function getPlannerPublications(): Promise<{ publications: Publication[]; error: string | null }> {
+  try {
+    return { publications: await getRealPublications(true), error: null };
+  } catch {
+    return { publications: [], error: 'Não foi possível carregar as publicações. As tarefas continuam disponíveis.' };
   }
 }
 

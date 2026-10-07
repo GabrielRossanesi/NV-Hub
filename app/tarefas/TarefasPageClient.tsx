@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Plus, Search, Check, AlertTriangle, CheckSquare, Clock, UserCheck, LayoutList, Calendar } from 'lucide-react';
 import { useTenantStore } from '../../lib/store';
 import TaskCalendar from '../../components/ui/task-calendar';
+import OperationalPlanner from '../../components/ui/operational-planner';
 import { useMounted } from '../../hooks/useMounted';
 import { PageHeader as UIHeader } from '../../components/ui/page-header';
 import Button from '../../components/ui/button';
@@ -11,12 +12,14 @@ import Input from '../../components/ui/input';
 import Textarea from '../../components/ui/textarea';
 import Select from '../../components/ui/select';
 import Modal from '../../components/ui/modal';
+import MobileDisclosure from '../../components/ui/mobile-disclosure';
 import Card, { CardContent } from '../../components/ui/card';
 import Table, { TableHeader, TableBody, TableRow, TableHead, TableCell } from '../../components/ui/table';
 import StatusBadge from '../../components/ui/status-badge';
 import EmptyState from '../../components/ui/empty-state';
 import DatePicker from '../../components/ui/date-picker';
-import { TaskPriority, TaskStatus, TeamTask } from '../../types';
+import { TaskPriority, TaskStatus, TeamTask, Publication } from '../../types';
+import { getPlannerPublications } from '../publicacoes/actions';
 import { isDatabaseDataMode } from '../../lib/data-mode';
 import { getClients } from '../clientes/actions';
 import {
@@ -35,10 +38,16 @@ export default function TarefasPageClient({
   initialTasks,
   initialClients,
   initialMembers,
+  initialPublications,
+  initialPublicationsError,
+  publicationsEnabled: dbPublicationsEnabled = false,
 }: {
   initialTasks?: TeamTask[];
   initialClients?: { id: string; companyName: string }[];
   initialMembers?: { id: string; name: string; role: string }[];
+  initialPublications?: Publication[];
+  initialPublicationsError?: string | null;
+  publicationsEnabled?: boolean;
 }) {
   const mounted = useMounted();
   const isDatabaseMode = isDatabaseDataMode;
@@ -48,6 +57,8 @@ export default function TarefasPageClient({
 
   // Database States
   const [dbTasks, setDbTasks] = useState<TeamTask[]>(initialTasks ?? []);
+  const [dbPublications, setDbPublications] = useState<Publication[]>(initialPublications ?? []);
+  const [publicationsError, setPublicationsError] = useState(initialPublicationsError ?? null);
   const [dbClients, setDbClients] = useState<{ id: string; companyName: string }[]>(initialClients ?? []);
   const [dbMembers, setDbMembers] = useState<{ id: string; name: string; role: string }[]>(initialMembers ?? []);
   const [isLoading, setIsLoading] = useState(isDatabaseMode && initialTasks === undefined);
@@ -57,14 +68,15 @@ export default function TarefasPageClient({
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [respFilter, setRespFilter] = useState<string>('all');
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [viewMode, setViewMode] = useState<'list' | 'calendar'>(() => {
+  const [plannerTaskId, setPlannerTaskId] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<'list' | 'calendar' | 'planner'>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('nv_hub_tasks_view');
+      const saved = localStorage.getItem('nv_hub_tasks_planner_view');
       if (saved === 'list' || saved === 'calendar') {
         return saved;
       }
     }
-    return 'list';
+    return 'planner';
   });
 
   // Form States
@@ -75,10 +87,10 @@ export default function TarefasPageClient({
   const [taskDueDate, setTaskDueDate] = useState('');
   const [taskDesc, setTaskDesc] = useState('');
 
-  const handleSetViewMode = (mode: 'list' | 'calendar') => {
+  const handleSetViewMode = (mode: 'list' | 'calendar' | 'planner') => {
     setViewMode(mode);
     if (typeof window !== 'undefined') {
-      localStorage.setItem('nv_hub_tasks_view', mode);
+      localStorage.setItem('nv_hub_tasks_planner_view', mode);
     }
   };
 
@@ -86,12 +98,15 @@ export default function TarefasPageClient({
   const loadAllData = useCallback(async () => {
     if (!isDatabaseMode) return;
     try {
-      const [tasksFetched, clientsFetched, membersFetched] = await Promise.all([
+      const [tasksFetched, clientsFetched, membersFetched, publicationsFetched] = await Promise.all([
         getTasks(true), // Fetch all tasks including archived for local tab filtering
         getClients(false), // Fetch active clients (excluding archived)
-        getOrganizationMembers()
+        getOrganizationMembers(),
+        dbPublicationsEnabled ? getPlannerPublications() : Promise.resolve({ publications: [], error: null }),
       ]);
       setDbTasks(tasksFetched);
+      if (!publicationsFetched.error) setDbPublications(publicationsFetched.publications);
+      setPublicationsError(publicationsFetched.error);
       setDbClients(clientsFetched);
       setDbMembers(membersFetched);
     } catch (err) {
@@ -99,7 +114,7 @@ export default function TarefasPageClient({
     } finally {
       setIsLoading(false);
     }
-  }, [isDatabaseMode]);
+  }, [isDatabaseMode, dbPublicationsEnabled]);
 
   // Initial fetch using an inline helper to prevent ESLint warnings
   useEffect(() => {
@@ -107,13 +122,16 @@ export default function TarefasPageClient({
     if (isDatabaseMode && initialTasks === undefined) {
       const fetchInitial = async () => {
         try {
-          const [tasksFetched, clientsFetched, membersFetched] = await Promise.all([
+          const [tasksFetched, clientsFetched, membersFetched, publicationsFetched] = await Promise.all([
             getTasks(true),
             getClients(false),
-            getOrganizationMembers()
+            getOrganizationMembers(),
+            dbPublicationsEnabled ? getPlannerPublications() : Promise.resolve({ publications: [], error: null }),
           ]);
           if (active) {
             setDbTasks(tasksFetched);
+            setDbPublications(publicationsFetched.publications);
+            setPublicationsError(publicationsFetched.error);
             setDbClients(clientsFetched);
             setDbMembers(membersFetched);
             setIsLoading(false);
@@ -128,7 +146,7 @@ export default function TarefasPageClient({
     return () => {
       active = false;
     };
-  }, [isDatabaseMode, initialTasks]);
+  }, [isDatabaseMode, initialTasks, dbPublicationsEnabled]);
 
   if (!mounted || (isDatabaseMode && isLoading && dbTasks.length === 0)) {
     return (
@@ -142,6 +160,14 @@ export default function TarefasPageClient({
   const activeTasks = isDatabaseMode ? dbTasks : sandboxStore.tasks;
   const activeClients = isDatabaseMode ? dbClients : sandboxStore.clients;
   const activeTeamMembers = isDatabaseMode ? dbMembers : sandboxStore.teamMembers;
+  const activePublications = isDatabaseMode ? dbPublications : sandboxStore.publications;
+  const publicationsEnabled = isDatabaseMode ? dbPublicationsEnabled : sandboxStore.currentFeatures.publications;
+  const openNewTask = (date?: string) => {
+    if (date) setTaskDueDate(date);
+    if (!isDatabaseMode && !selectedClientId) setSelectedClientId(activeClients[0]?.id || '');
+    setTaskResp(activeTeamMembers[0]?.name || '');
+    setIsModalOpen(true);
+  };
 
   // Filter tasks
   const filteredTasks = activeTasks.filter((t) => {
@@ -176,12 +202,14 @@ export default function TarefasPageClient({
         await loadAllData();
       } catch (err) {
         alert(err instanceof Error ? err.message : 'Erro ao atualizar tarefa.');
+        return false;
       } finally {
         setIsLoading(false);
       }
     } else {
       sandboxStore.updateTaskStatus(taskId, status);
     }
+    return true;
   };
 
   const handleUpdateTask = async (taskId: string, updates: Partial<TeamTask>) => {
@@ -191,21 +219,23 @@ export default function TarefasPageClient({
         await updateTask(taskId, {
           title: updates.title,
           description: updates.description,
-          clientId: updates.clientId || undefined,
-          responsibleUser: updates.responsibleUser || undefined,
-          dueDate: updates.dueDate || undefined,
+          clientId: updates.clientId,
+          responsibleUser: updates.responsibleUser,
+          dueDate: updates.dueDate,
           priority: updates.priority,
           status: updates.status,
         });
         await loadAllData();
       } catch (err) {
         alert(err instanceof Error ? err.message : 'Erro ao salvar alterações da tarefa.');
+        return false;
       } finally {
         setIsLoading(false);
       }
     } else {
       sandboxStore.updateTask(taskId, updates);
     }
+    return true;
   };
 
   const handleArchiveTask = async (taskId: string) => {
@@ -241,12 +271,14 @@ export default function TarefasPageClient({
         await loadAllData();
       } catch (err) {
         alert(err instanceof Error ? err.message : 'Erro ao adicionar observação.');
+        return false;
       } finally {
         setIsLoading(false);
       }
     } else {
       sandboxStore.addTaskNote(taskId, content);
     }
+    return true;
   };
 
   const handleCreateTask = async (e: React.FormEvent) => {
@@ -356,20 +388,32 @@ export default function TarefasPageClient({
     : ['all', 'pending', 'in_progress', 'completed'];
 
   return (
-    <div className="space-y-6">
+    <div className="nv-tasks-page space-y-6">
       {/* Page Header */}
       <UIHeader
-        title="Tarefas da Equipe"
-        description={isDatabaseMode ? "Acompanhe o cronograma operacional e colabore em tarefas reais salvas no PostgreSQL." : "Acompanhe o cronograma operacional, kanban de atividades e produtividade individual."}
+        variant="operational"
+        eyebrow="Operações"
+        title="Planner da equipe"
+        description={publicationsEnabled ? 'Organize tarefas e publicações no mesmo calendário.' : 'Organize os prazos e as atividades da equipe.'}
         actions={
-          <Button onClick={() => setIsModalOpen(true)} className="flex items-center gap-2">
+          <Button onClick={() => openNewTask()} className="flex items-center gap-2">
             <Plus className="h-4 w-4" /> Nova Tarefa
           </Button>
         }
       />
 
+      <div className="flex items-center gap-1 border-b border-border" aria-label="Visualização das atividades">
+        {([{ value: 'planner', label: 'Planner', icon: Calendar }, { value: 'list', label: 'Lista de tarefas', icon: LayoutList }] as const).map(item => <button key={item.value} type="button" aria-pressed={item.value === 'planner' ? viewMode === 'planner' : viewMode !== 'planner'} onClick={() => handleSetViewMode(item.value)} className={`flex min-h-11 items-center gap-2 border-b-2 px-4 text-label font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/40 ${(item.value === 'planner' ? viewMode === 'planner' : viewMode !== 'planner') ? 'border-primary text-foreground' : 'border-transparent text-foreground-muted hover:text-foreground'}`}><item.icon className="h-4 w-4" aria-hidden="true" />{item.label}</button>)}
+      </div>
+
+      {viewMode === 'planner' && publicationsError && <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-md bg-warning-subtle p-4 text-body-small text-warning"><p>{publicationsError}</p><Button variant="outline" size="sm" isLoading={isLoading} onClick={() => void loadAllData()}>Tentar novamente</Button></div>}
+      {viewMode === 'planner' && <OperationalPlanner tasks={activeTasks} publications={activePublications} publicationsEnabled={publicationsEnabled} clients={activeClients} members={activeTeamMembers} onOpenTask={setPlannerTaskId} onCreateTask={openNewTask} />}
+      {plannerTaskId && <TaskCalendar key={plannerTaskId} allowUnassigned={isDatabaseMode} detailTaskId={plannerTaskId} onDetailClose={() => setPlannerTaskId(null)} tasks={activeTasks} updateTaskStatus={handleUpdateTaskStatus} clients={activeClients} teamMembers={activeTeamMembers} updateTask={handleUpdateTask} addTaskNote={handleAddTaskNote} />}
+
+      {viewMode !== 'planner' && <>
+
       {/* Metrics Row Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="nv-task-metrics grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card className="p-4 flex items-center gap-4">
           <div className="h-10 w-10 bg-primary/10 rounded-full flex items-center justify-center text-primary shrink-0">
             <CheckSquare className="h-5 w-5" />
@@ -411,12 +455,13 @@ export default function TarefasPageClient({
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 items-start">
+      <div className="nv-task-layout grid grid-cols-1 lg:grid-cols-4 gap-6 items-start">
         {/* Sidebar Leaders & Filter */}
-        <div className="space-y-6 lg:col-span-1">
+        <div className="nv-task-context space-y-6 lg:col-span-1">
           {/* View Toggle */}
           <Card className="p-1.5 flex gap-1">
             <button
+              aria-pressed={viewMode === 'list'}
               onClick={() => handleSetViewMode('list')}
               className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
                 viewMode === 'list'
@@ -427,6 +472,7 @@ export default function TarefasPageClient({
               <LayoutList className="h-3.5 w-3.5" /> Lista
             </button>
             <button
+              aria-pressed={viewMode === 'calendar'}
               onClick={() => handleSetViewMode('calendar')}
               className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
                 viewMode === 'calendar'
@@ -439,9 +485,7 @@ export default function TarefasPageClient({
           </Card>
 
           {/* Responsible Filter */}
-          <Card className="p-4 space-y-3">
-            <h3 className="text-xs font-bold text-muted-foreground tracking-wider uppercase">Filtro por Equipe</h3>
-            <div className="space-y-1">
+          <MobileDisclosure title="Filtro por Equipe" summary={respFilter === 'all' ? 'Toda a equipe' : respFilter} className="p-4 space-y-3" contentClassName="space-y-1">
               <button
                 onClick={() => setRespFilter('all')}
                 className={`w-full text-left px-3 py-2 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
@@ -465,13 +509,10 @@ export default function TarefasPageClient({
                   <span>{m.name}</span>
                 </button>
               ))}
-            </div>
-          </Card>
+          </MobileDisclosure>
 
           {/* Team Leaderboard stats */}
-          <Card className="p-4 space-y-4">
-            <h3 className="text-xs font-bold text-muted-foreground tracking-wider uppercase">Produtividade</h3>
-            <div className="space-y-3">
+          <MobileDisclosure title="Produtividade" summary={`${completedTasks} de ${totalTasks} tarefas concluídas`} className="nv-task-productivity p-4 space-y-4" contentClassName="space-y-3">
               {teamStats.map((item) => (
                 <div key={item.name} className="space-y-1">
                   <div className="flex justify-between text-xs font-medium">
@@ -486,12 +527,11 @@ export default function TarefasPageClient({
                   </div>
                 </div>
               ))}
-            </div>
-          </Card>
+          </MobileDisclosure>
         </div>
 
         {/* Tasks Container */}
-        <div className="lg:col-span-3 space-y-4">
+        <div className="nv-task-workspace lg:col-span-3 space-y-4">
           {/* Filters Row */}
           <div className="flex flex-col md:flex-row gap-3 items-center justify-between bg-card p-4 rounded-xl border border-border/80 shadow-sm">
             {/* Search */}
@@ -499,6 +539,7 @@ export default function TarefasPageClient({
               <Search className="absolute left-3 h-4 w-4 text-muted-foreground" />
               <input
                 type="text"
+                aria-label="Buscar tarefa ou cliente"
                 placeholder="Buscar tarefa, cliente..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -507,10 +548,11 @@ export default function TarefasPageClient({
             </div>
 
             {/* Status Tabs */}
-            <div className="flex gap-1 overflow-x-auto w-full md:w-auto">
+            <div className="nv-mobile-filter-strip flex gap-1 overflow-x-auto w-full md:w-auto">
               {statusFiltersList.map((statusKey) => (
                 <button
                   key={statusKey}
+                  aria-pressed={statusFilter === statusKey}
                   onClick={() => setStatusFilter(statusKey)}
                   className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition-all cursor-pointer shrink-0 ${
                     statusFilter === statusKey
@@ -533,6 +575,7 @@ export default function TarefasPageClient({
           {/* Tasks List or Calendar */}
           {viewMode === 'calendar' ? (
             <TaskCalendar
+              allowUnassigned={isDatabaseMode}
               tasks={filteredTasks}
               updateTaskStatus={handleUpdateTaskStatus}
               clients={activeClients}
@@ -642,7 +685,7 @@ export default function TarefasPageClient({
                     </div>
 
                     {/* Mobile Card List View */}
-                    <div className="block md:hidden divide-y divide-border/40">
+                    <div className="nv-task-mobile-list block md:hidden divide-y divide-border/40">
                       {filteredTasks.map((task) => (
                         <div key={task.id} className="p-4 space-y-3">
                           <div className="flex items-start justify-between gap-2">
@@ -725,6 +768,7 @@ export default function TarefasPageClient({
         </div>
       </div>
 
+      </>}
       {/* Creation Modal */}
       <Modal
         isOpen={isModalOpen}
@@ -792,7 +836,7 @@ export default function TarefasPageClient({
             <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)}>
               Cancelar
             </Button>
-            <Button type="submit">
+            <Button type="submit" isLoading={isLoading}>
               Gravar Tarefa
             </Button>
           </div>

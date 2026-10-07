@@ -5,6 +5,35 @@ interface TableProps extends React.HTMLAttributes<HTMLTableElement> {
   containerClassName?: string;
 }
 
+function headerText(node: React.ReactNode): string {
+  return React.Children.toArray(node).map(child => {
+    if (typeof child === 'string' || typeof child === 'number') return String(child);
+    if (React.isValidElement<{ children?: React.ReactNode }>(child)) return headerText(child.props.children);
+    return '';
+  }).join('');
+}
+
+// Render labels on the server; mobile rows keep every value and action visible.
+function labelMobileCells(children: React.ReactNode) {
+  const sections = React.Children.toArray(children);
+  const header = sections.find(child => React.isValidElement(child) && child.type === TableHeader);
+  if (!React.isValidElement<{ children?: React.ReactNode }>(header)) return children;
+  const row = React.Children.toArray(header.props.children).find(child => React.isValidElement(child) && child.type === TableRow);
+  if (!React.isValidElement<{ children?: React.ReactNode }>(row)) return children;
+  const labels = React.Children.toArray(row.props.children).map(child => headerText(child));
+
+  return sections.map(section => {
+    if (!React.isValidElement<{ children?: React.ReactNode }>(section) || section.type !== TableBody) return section;
+    return React.cloneElement(section, {}, React.Children.map(section.props.children, bodyRow => {
+      if (!React.isValidElement<{ children?: React.ReactNode }>(bodyRow) || bodyRow.type !== TableRow) return bodyRow;
+      return React.cloneElement(bodyRow, {}, React.Children.map(bodyRow.props.children, (cell, index) => {
+        if (!React.isValidElement<React.HTMLAttributes<HTMLTableCellElement> & { 'data-label'?: string }>(cell) || cell.type !== TableCell) return cell;
+        return React.cloneElement(cell, { 'data-label': labels[index] });
+      }));
+    }));
+  });
+}
+
 export function Table({
   className = '',
   containerClassName = '',
@@ -15,11 +44,11 @@ export function Table({
   const isOperational = variant === 'operational';
 
   return (
-    <div className={`w-full overflow-x-auto ${isOperational
+    <div className={`nv-table-container w-full overflow-x-auto ${isOperational
       ? 'rounded-lg border border-border bg-surface shadow-subtle'
       : 'rounded-xl border border-border/20 bg-card/30 shadow-sm backdrop-blur-sm'} ${containerClassName}`}>
-      <table className={`w-full border-collapse text-left text-sm ${isOperational ? 'min-w-[680px]' : 'min-w-[600px]'} ${className}`} {...props}>
-        {children}
+      <table className={`nv-table-mobile w-full border-collapse text-left text-sm ${isOperational ? 'min-w-[680px]' : 'min-w-[600px]'} ${className}`} {...props}>
+        {labelMobileCells(children)}
       </table>
     </div>
   );

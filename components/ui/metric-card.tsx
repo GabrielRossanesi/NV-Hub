@@ -57,7 +57,7 @@ export function MetricCard({
     </>
   );
 
-  const classes = 'group relative min-h-28 overflow-hidden rounded-lg border border-border bg-surface p-card shadow-subtle transition-[border-color,box-shadow] hover:border-border-strong hover:shadow-none';
+  const classes = 'nv-metric group relative min-h-28 overflow-hidden rounded-lg border border-border bg-surface p-card shadow-subtle transition-[border-color,box-shadow] hover:border-border-strong hover:shadow-none';
 
   return href ? (
     <Link href={href} className={`${classes} block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/35`}>

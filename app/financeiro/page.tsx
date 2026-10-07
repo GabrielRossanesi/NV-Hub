@@ -54,7 +54,7 @@ export default function FinanceiroPage() {
       />
 
       {/* Premium Horizontal Navigation Menu */}
-      <div className="border-b border-border/20 overflow-x-auto scrollbar-none flex -mx-6 px-6 lg:mx-0 lg:px-0">
+      <div className="nv-financial-tabs border-b border-border/20 overflow-x-auto scrollbar-none flex -mx-6 px-6 lg:mx-0 lg:px-0">
         <nav className="flex gap-1 min-w-max pb-px">
           {tabs.map((tab) => {
             const isActive = activeTab === tab.id;

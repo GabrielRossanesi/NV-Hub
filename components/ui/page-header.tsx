@@ -20,7 +20,7 @@ export function PageHeader({
   const isOperational = variant === 'operational';
 
   return (
-    <div className={`flex flex-col gap-4 border-b border-border pb-5 sm:flex-row sm:justify-between ${
+    <div className={`nv-page-header flex flex-col gap-4 border-b border-border pb-5 sm:flex-row sm:justify-between ${
       isOperational ? 'sm:items-end' : 'mb-6 sm:items-center'
     } ${className}`}>
       <div className="min-w-0">
@@ -42,7 +42,7 @@ export function PageHeader({
         )}
       </div>
       {actions && (
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="nv-page-actions flex flex-wrap items-center gap-3">
           {actions}
         </div>
       )}
