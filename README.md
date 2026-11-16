@@ -29,3 +29,6 @@ Plataforma SaaS de Gestão Comercial e Operacional integrada para agências, con
    ```
 
 3. Abra [http://localhost:3000](http://localhost:3000) no seu navegador.
+
+
+teste gustavo
